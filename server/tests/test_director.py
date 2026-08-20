@@ -64,3 +64,10 @@ def test_dm_screen_shape():
     assert scr["clocks"][0]["filled"] == 0
     assert {n["name"] for n in scr["npcs"]} == {"Grubb Marsh", "Nib"}
     assert len(scr["party_status"]) == 3
+
+
+def test_party_status_includes_inventory():
+    spine, state = load_spine(), fresh_state()
+    scr = dm_screen_state(spine, state, load_personas())
+    for member in scr["party_status"]:
+        assert isinstance(member["inventory"], list) and member["inventory"]

@@ -15,7 +15,8 @@
       "stats": {"str": 8, "dex": 14, "con": 14, "int": 16, "wis": 12, "cha": 10},
       "proficiencies": ["arcana", "investigation", "insight"],
       "level": 1, "ac": 12, "hp": 8, "max_hp": 8,
-      "attack": {"name": "Fire Bolt", "ability": "int", "damage": "1d10+0"}
+      "attack": {"name": "Fire Bolt", "ability": "int", "damage": "1d10+0"},
+      "inventory": ["spellbook", "component pouch", "three sticks of chalk", "a folded letter he does not talk about", "12 gp"]
     }
   },
   "seat2": {
@@ -34,7 +35,8 @@
       "stats": {"str": 8, "dex": 16, "con": 12, "int": 10, "wis": 12, "cha": 13},
       "proficiencies": ["stealth", "sleight_of_hand", "deception", "perception"],
       "level": 1, "ac": 14, "hp": 9, "max_hp": 9,
-      "attack": {"name": "Dagger", "ability": "dex", "damage": "1d4+3"}
+      "attack": {"name": "Dagger", "ability": "dex", "damage": "1d4+3"},
+      "inventory": ["lockpicks", "six assorted trinkets of unclear provenance", "smoke pellet", "lucky copper bit", "3 gp"]
     }
   },
   "seat3": {
@@ -53,7 +55,8 @@
       "stats": {"str": 10, "dex": 12, "con": 13, "int": 11, "wis": 16, "cha": 13},
       "proficiencies": ["insight", "religion", "persuasion"],
       "level": 1, "ac": 16, "hp": 9, "max_hp": 9,
-      "attack": {"name": "Mace", "ability": "str", "damage": "1d6+0"}
+      "attack": {"name": "Mace", "ability": "str", "damage": "1d6+0"},
+      "inventory": ["her grandmother's brass censer", "healer's kit", "prayer beads", "waterskin", "7 sp"]
     }
   }
 }

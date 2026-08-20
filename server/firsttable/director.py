@@ -105,6 +105,7 @@ def dm_screen_state(spine: Spine, state: dict, personas: dict[str, Persona],
             "hp": party_hp.get(seat, persona.sheet["hp"]),
             "max_hp": persona.sheet["max_hp"],
             "conditions": [],
+            "inventory": list(persona.sheet.get("inventory", [])),
         })
     return {"spine_title": spine.title, "beats": beats, "clocks": clocks,
             "npcs": npcs, "party_status": party_status}

@@ -33,6 +33,8 @@ class Persona:
             f"Stats: {json.dumps(self.sheet['stats'])}. AC {self.sheet['ac']}, "
             f"HP {self.sheet['hp']}/{self.sheet['max_hp']}. "
             f"Proficient: {', '.join(self.sheet['proficiencies'])}.\n"
+            f"You carry: {', '.join(self.sheet.get('inventory', []))}. "
+            "Only use items you actually carry.\n"
             "HARD RULES:\n"
             "- Stay in character. PG-13 always.\n"
             "- NEVER narrate the world, other characters, or NPC decisions — that is the DM's job.\n"

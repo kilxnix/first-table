@@ -7,7 +7,9 @@ import {
   Text,
   View,
 } from "react-native";
+import { getCoachPref, nextCoachStep, setCoachPref } from "../coach";
 import { ChatThread } from "../components/ChatThread";
+import { CoachOverlay } from "../components/CoachOverlay";
 import { DiceTray } from "../components/DiceTray";
 import { DMDrawer } from "../components/DMDrawer";
 import { InputBar, InputBarHandle } from "../components/InputBar";
@@ -44,6 +46,20 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: 
   const [busy, setBusy] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [trayOpen, setTrayOpen] = useState(false);
+  const [coachPref, setCoachPrefState] = useState(getCoachPref);
+  const [coachDismissed, setCoachDismissed] = useState<ReadonlySet<string>>(new Set());
+
+  const chooseCoach = useCallback((pref: "on" | "off") => {
+    setCoachPref(pref);
+    setCoachPrefState(pref);
+  }, []);
+  const dismissCoachStep = useCallback((id: string) => {
+    setCoachDismissed((d) => new Set(d).add(id));
+  }, []);
+  const skipTour = useCallback(() => chooseCoach("off"), [chooseCoach]);
+
+  const coachStep =
+    coachPref === "on" ? nextCoachStep(thread, sceneActive, coachDismissed) : null;
 
   const lastRoll = useMemo(() => {
     for (let i = thread.length - 1; i >= 0; i--) {
@@ -144,17 +160,44 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: 
             The party is already at the table. Start the scene and they speak first — your job is
             to react.
           </Text>
-          <Pressable
-            onPress={toggleScene}
-            style={({ pressed }) => [styles.seatBtn, pressed && styles.seatBtnPressed]}
-          >
-            <Text style={styles.seatBtnText}>Start the scene</Text>
-          </Pressable>
+          {coachPref === null ? (
+            <>
+              <Pressable
+                onPress={() => {
+                  chooseCoach("on");
+                  toggleScene();
+                }}
+                style={({ pressed }) => [styles.seatBtn, pressed && styles.seatBtnPressed]}
+              >
+                <Text style={styles.seatBtnText}>{"\u{1F393}"} Coach me through my first scene</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  chooseCoach("off");
+                  toggleScene();
+                }}
+                hitSlop={8}
+                style={styles.seatAltBtn}
+              >
+                <Text style={styles.seatAltText}>I've got this — just start</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable
+              onPress={toggleScene}
+              style={({ pressed }) => [styles.seatBtn, pressed && styles.seatBtnPressed]}
+            >
+              <Text style={styles.seatBtnText}>Start the scene</Text>
+            </Pressable>
+          )}
         </View>
       ) : (
         <ChatThread thread={thread} typing={typing} party={state?.party ?? []} />
       )}
 
+      {coachStep && (
+        <CoachOverlay step={coachStep} onDismiss={dismissCoachStep} onSkipTour={skipTour} />
+      )}
       {sceneActive && connected && <QuickChips onSend={sendChip} onPrefill={prefillChip} />}
       <InputBar ref={inputRef} onSend={sendDmInput} disabled={!sceneActive || !connected} />
 
@@ -165,7 +208,12 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: 
         lastRoll={lastRoll}
         disabled={!connected}
       />
-      <DMDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} dmScreen={dmScreen} />
+      <DMDrawer
+        visible={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        dmScreen={dmScreen}
+        party={state?.party}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -237,4 +285,6 @@ const styles = StyleSheet.create({
   },
   seatBtnPressed: { opacity: 0.8 },
   seatBtnText: { color: theme.bg, fontSize: 16, fontWeight: "700" },
+  seatAltBtn: { marginTop: 14 },
+  seatAltText: { color: theme.dim, fontSize: 13, textDecorationLine: "underline" },
 });

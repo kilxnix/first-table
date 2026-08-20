@@ -42,3 +42,13 @@ def test_no_wotc_product_identity():
     blob = " ".join(p.read_text(encoding="utf-8") for p in root.glob("*.json")).lower()
     for banned in ["dungeons & dragons", "d&d", "beholder", "mind flayer", "strahd", "faerun", "forgotten realms"]:
         assert banned not in blob
+
+
+def test_inventory_present_and_known():
+    # Spec section 4 chassis: every sheet carries an inventory, and the agent
+    # must know what it carries (it appears in the persona prompt).
+    for persona in load_personas().values():
+        inv = persona.sheet["inventory"]
+        assert isinstance(inv, list) and len(inv) >= 3
+        assert all(isinstance(item, str) and item for item in inv)
+        assert inv[0] in persona.system_prompt()

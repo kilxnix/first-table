@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { theme } from "../theme";
-import { BeatView, DMScreenState } from "../types";
+import { BeatView, DMScreenState, PartyMember } from "../types";
 
 const NATIVE = Platform.OS !== "web";
 const serif = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" });
@@ -20,6 +20,8 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   dmScreen: DMScreenState | null;
+  /** Full party members (for the tap-to-peek sheet: stats + AC). */
+  party?: PartyMember[];
 }
 
 function beatGlyph(status: BeatView["status"]): string {
@@ -32,8 +34,9 @@ function SectionTitle({ children }: { children: string }) {
   return <Text style={styles.sectionTitle}>{children}</Text>;
 }
 
-export function DMDrawer({ visible, onClose, dmScreen }: Props) {
+export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
   const [mounted, setMounted] = useState(visible);
+  const [peekSeat, setPeekSeat] = useState<string | null>(null);
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
 
   useEffect(() => {
@@ -138,9 +141,18 @@ export function DMDrawer({ visible, onClose, dmScreen }: Props) {
             <SectionTitle>Party</SectionTitle>
             {dmScreen.party_status.map((member) => {
               const frac = member.max_hp > 0 ? member.hp / member.max_hp : 0;
+              const peeking = peekSeat === member.seat;
+              const full = party?.find((p) => p.seat === member.seat);
               return (
-                <View key={member.seat} style={styles.partyRow}>
-                  <Text style={styles.partyName}>{member.name}</Text>
+                <Pressable
+                  key={member.seat}
+                  onPress={() => setPeekSeat(peeking ? null : member.seat)}
+                  style={styles.partyRow}
+                >
+                  <View style={styles.partyHead}>
+                    <Text style={styles.partyName}>{member.name}</Text>
+                    <Text style={styles.peekHint}>{peeking ? "▾" : "▸"}</Text>
+                  </View>
                   <View style={styles.hpTrack}>
                     <View
                       style={[
@@ -158,7 +170,24 @@ export function DMDrawer({ visible, onClose, dmScreen }: Props) {
                   {member.conditions.length > 0 && (
                     <Text style={styles.conditions}>{member.conditions.join(", ")}</Text>
                   )}
-                </View>
+                  {peeking && (
+                    <View style={styles.peek}>
+                      {full && (
+                        <Text style={styles.peekStats}>
+                          {Object.entries(full.stats)
+                            .map(([k, v]) => `${k.toUpperCase()} ${v}`)
+                            .join(" · ")}
+                          {`  ·  AC ${full.ac}`}
+                        </Text>
+                      )}
+                      {member.inventory.length > 0 && (
+                        <Text style={styles.peekInventory}>
+                          {"\u{1F392}"} {member.inventory.join(" · ")}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </Pressable>
               );
             })}
           </ScrollView>
@@ -269,7 +298,17 @@ const styles = StyleSheet.create({
   npcSecret: { color: theme.accent, fontSize: 13, marginTop: 5, lineHeight: 18 },
 
   partyRow: { marginBottom: 10 },
+  partyHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   partyName: { color: theme.text, fontSize: 14, fontWeight: "600", marginBottom: 4 },
+  peekHint: { color: theme.dim, fontSize: 12 },
+  peek: {
+    marginTop: 6,
+    paddingLeft: 10,
+    borderLeftColor: theme.border,
+    borderLeftWidth: 2,
+  },
+  peekStats: { color: theme.dim, fontSize: 12, lineHeight: 18, fontVariant: ["tabular-nums"] },
+  peekInventory: { color: theme.text, fontSize: 12, lineHeight: 18, marginTop: 3 },
   hpTrack: {
     height: 7,
     borderRadius: 4,

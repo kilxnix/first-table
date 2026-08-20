@@ -42,6 +42,7 @@ class PartyMember(BaseModel):
     mood: str
     portrait: str
     stats: dict[str, int]
+    inventory: list[str] = []
 
 
 class BeatView(BaseModel):
@@ -71,6 +72,7 @@ class PartyStatus(BaseModel):
     hp: int
     max_hp: int
     conditions: list[str]
+    inventory: list[str] = []
 
 
 class DMScreenState(BaseModel):

@@ -136,3 +136,9 @@ def test_cold_open_done_persisted_before_lines_play():
         asyncio.run(t.start_scene(emit))
     # A crash mid-cold-open must not queue a full replay in a later scene.
     assert t.store.get_campaign(t.cid)["state"]["cold_open_done"] is True
+
+
+def test_campaign_state_party_has_inventory():
+    t = make_table()
+    st = t.campaign_state()
+    assert all(m["inventory"] for m in st["party"])

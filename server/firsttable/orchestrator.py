@@ -271,7 +271,8 @@ class Table:
                           "hp": p.sheet["hp"], "max_hp": p.sheet["max_hp"],
                           "ac": p.sheet["ac"],
                           "mood": self.state.get("moods", {}).get(seat, "steady"),
-                          "portrait": p.portrait, "stats": p.sheet["stats"]})
+                          "portrait": p.portrait, "stats": p.sheet["stats"],
+                          "inventory": list(p.sheet.get("inventory", []))})
         return {"id": campaign["id"], "name": campaign["name"],
                 "scene_active": active is not None,
                 "scene_id": active["id"] if active else None,
