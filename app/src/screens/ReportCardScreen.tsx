@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
-  FlatList,
+  Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -29,10 +30,14 @@ function scoreColor(score: number): string {
   return theme.text;
 }
 
+// Fallback for environments where onLayout is delayed or never fires
+// (e.g. hidden tabs): the app column is capped at 520 wide in App.tsx.
+const FALLBACK_WIDTH = Math.min(Dimensions.get("window").width, 520);
+
 export function ReportCardScreen({ report, onDone }: Props) {
-  const [width, setWidth] = useState(0);
+  const [measured, setMeasured] = useState(0);
+  const width = measured > 0 ? measured : FALLBACK_WIDTH;
   const [page, setPage] = useState(0);
-  const listRef = useRef<FlatList<Card>>(null);
 
   const cards: Card[] = [
     { key: "spotlight", kind: "axis", title: "Spotlight", axis: report.axes.spotlight },
@@ -90,23 +95,26 @@ export function ReportCardScreen({ report, onDone }: Props) {
   );
 
   return (
-    <View style={styles.screen} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View style={styles.screen} onLayout={(e) => setMeasured(e.nativeEvent.layout.width)}>
       <Text style={styles.header}>Scene report</Text>
       <Text style={styles.subHeader}>Scene {report.scene_id}</Text>
-      {width > 0 && (
-        <FlatList
-          ref={listRef}
-          data={cards}
-          keyExtractor={(c) => c.key}
-          renderItem={renderCard}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={onScroll}
-          scrollEventThrottle={32}
-          getItemLayout={(_d, i) => ({ length: width, offset: width * i, index: i })}
-        />
-      )}
+      {/* Plain ScrollView, not FlatList: three static cards need no
+          virtualization, and react-native-web's VirtualizedList has proven
+          unreliable (see ChatThread). */}
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
+        style={styles.pager}
+      >
+        {cards.map((item) => (
+          <View key={item.key} style={{ width }}>
+            {renderCard({ item })}
+          </View>
+        ))}
+      </ScrollView>
       <View style={styles.dots}>
         {cards.map((c, i) => (
           <View key={c.key} style={[styles.dot, i === page && styles.dotActive]} />
@@ -118,6 +126,7 @@ export function ReportCardScreen({ report, onDone }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.bg, paddingTop: 26 },
+  pager: { flex: 1 },
   header: {
     color: theme.dim,
     fontSize: 12,

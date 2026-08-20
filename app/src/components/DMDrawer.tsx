@@ -57,8 +57,14 @@ export function DMDrawer({ visible, onClose, dmScreen }: Props) {
   const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [DRAWER_WIDTH, 0] });
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      <Animated.View style={[styles.backdrop, { opacity: progress }]}>
+    // pointerEvents gated on `visible`, not on the animation: the close
+    // animation is rAF-driven and can stall (hidden tabs), and a mounted
+    // invisible backdrop must never swallow the app's clicks.
+    <View style={StyleSheet.absoluteFill} pointerEvents={visible ? "box-none" : "none"}>
+      <Animated.View
+        style={[styles.backdrop, { opacity: progress }]}
+        pointerEvents={visible ? "auto" : "none"}
+      >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
       <Animated.View style={[styles.drawer, { width: DRAWER_WIDTH, transform: [{ translateX }] }]}>

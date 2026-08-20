@@ -44,8 +44,11 @@ def build(tel: SceneTelemetry, personas: dict, budget_minutes: int) -> dict:
         spot = max(0, spot - 15)
     most = max(seats, key=lambda s: turns[s])
     least = min(seats, key=lambda s: turns[s])
-    spot_detail = (f"Most heard: {personas[most].name} ({turns[most]} turns); "
-                   f"least heard: {personas[least].name} ({turns[least]} turns).")
+    if turns[most] == turns[least]:
+        spot_detail = f"Every seat got equal airtime ({turns[most]} turns each)."
+    else:
+        spot_detail = (f"Most heard: {personas[most].name} ({turns[most]} turns); "
+                       f"least heard: {personas[least].name} ({turns[least]} turns).")
 
     # --- Pacing ---
     events = sorted(tel.dm_turns + [ts for lst in tel.agent_turns.values() for ts in lst])
