@@ -104,7 +104,9 @@ export function DiceTray({ visible, onClose, onRoll, lastRoll, disabled = false 
                     ? ` ${roll.modifier > 0 ? `+${roll.modifier}` : roll.modifier}`
                     : ""}
                 </Text>
-                {roll.outcome ? <Text style={styles.resultOutcome}>{roll.outcome}</Text> : null}
+                {roll.outcome && roll.outcome !== String(roll.total) ? (
+                  <Text style={styles.resultOutcome}>{roll.outcome}</Text>
+                ) : null}
               </>
             ) : (
               <Text style={styles.resultHintText}>

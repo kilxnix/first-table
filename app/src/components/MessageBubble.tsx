@@ -82,7 +82,10 @@ export function MessageBubble({ message, portrait, grouped = false }: Props) {
             {r.total}
           </Text>
           <Text style={styles.rollLine}>{formatRollDetail(r.formula, r.rolls, r.modifier)}</Text>
-          {r.outcome ? <Text style={styles.rollOutcome}>{r.outcome}</Text> : null}
+          {/* outcome that just repeats the hero total (plain checks) adds nothing */}
+          {r.outcome && r.outcome !== String(r.total) ? (
+            <Text style={styles.rollOutcome}>{r.outcome}</Text>
+          ) : null}
         </View>
       </Animated.View>
     );
