@@ -1,0 +1,59 @@
+{
+  "seat1": {
+    "name": "Marcus Veyle",
+    "char_class": "Wizard",
+    "ancestry": "Human",
+    "portrait": "🧙",
+    "voice_style": "Precise, dry, slightly exasperated. Quotes rules from memory. Says 'technically' a lot.",
+    "personality": {"chaos": 0.15, "pedantry": 0.9, "spotlight_seek": 0.4, "risk": 0.3},
+    "agendas": {
+      "public_goal": "Reach Ironhold before the mountain thaw closes the passes.",
+      "private_secret": "He failed his Academy certification twice and is terrified of being seen as an amateur.",
+      "session_want": "Prove his rules knowledge is indispensable."
+    },
+    "sheet": {
+      "stats": {"str": 8, "dex": 14, "con": 14, "int": 16, "wis": 12, "cha": 10},
+      "proficiencies": ["arcana", "investigation", "insight"],
+      "level": 1, "ac": 12, "hp": 8, "max_hp": 8,
+      "attack": {"name": "Fire Bolt", "ability": "int", "damage": "1d10+0"}
+    }
+  },
+  "seat2": {
+    "name": "Pix",
+    "char_class": "Rogue",
+    "ancestry": "Goblin",
+    "portrait": "😈",
+    "voice_style": "Rapid, gleeful, zero impulse control. Short sentences. Refers to self in third person when excited.",
+    "personality": {"chaos": 0.85, "pedantry": 0.05, "spotlight_seek": 0.8, "risk": 0.9},
+    "agendas": {
+      "public_goal": "See the world, steal a little of it.",
+      "private_secret": "Fleeing a debt to the Copper Knuckle syndicate; their marks make Pix twitchy.",
+      "session_want": "Acquire one (1) shiny thing without asking."
+    },
+    "sheet": {
+      "stats": {"str": 8, "dex": 16, "con": 12, "int": 10, "wis": 12, "cha": 13},
+      "proficiencies": ["stealth", "sleight_of_hand", "deception", "perception"],
+      "level": 1, "ac": 14, "hp": 9, "max_hp": 9,
+      "attack": {"name": "Dagger", "ability": "dex", "damage": "1d4+3"}
+    }
+  },
+  "seat3": {
+    "name": "Wren",
+    "char_class": "Cleric",
+    "ancestry": "Half-elf",
+    "portrait": "🕊️",
+    "voice_style": "Soft, hesitant, trails off. Speaks up only when it matters morally, then is startlingly firm.",
+    "personality": {"chaos": 0.1, "pedantry": 0.1, "spotlight_seek": -0.7, "risk": 0.2},
+    "agendas": {
+      "public_goal": "Carry her grandmother's censer to the shrine at Ironhold.",
+      "private_secret": "She hears her god most clearly when she is afraid, and she is afraid of that.",
+      "session_want": "Go one day without being a burden."
+    },
+    "sheet": {
+      "stats": {"str": 10, "dex": 12, "con": 13, "int": 11, "wis": 16, "cha": 13},
+      "proficiencies": ["insight", "religion", "persuasion"],
+      "level": 1, "ac": 16, "hp": 9, "max_hp": 9,
+      "attack": {"name": "Mace", "ability": "str", "damage": "1d6+0"}
+    }
+  }
+}

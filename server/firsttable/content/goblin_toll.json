@@ -1,0 +1,61 @@
+{
+  "id": "goblin_toll",
+  "title": "The Goblin Toll",
+  "cold_open": [
+    {"seat": "seat2", "speech": "Toll bridge! Pix has never paid a toll in Pix's LIFE and today is not the day we start.", "action": "bounces on the balls of her feet, eyeing the rope railings"},
+    {"seat": "seat1", "speech": "It is one silver, Pix. The alternative is a forty-minute detour through a bog. Technically the bog also charges a toll; it's called leeches.", "action": "adjusts his satchel and squints at the toll sign"},
+    {"seat": "seat3", "speech": "I... I can pay it. If that helps. I have some coin left.", "action": "half-raises her hand, then lowers it"},
+    {"seat": "seat2", "speech": "Okay okay okay — where were we. We're at the toll bridge, right? Big ugly guy at the gate?", "ooc": "Finally, you're here. What do we see, boss?"}
+  ],
+  "npcs": {
+    "Grubb Marsh": {
+      "voice_note": "Gravel voice, fake-official. Clears his throat before every lie.",
+      "secret": "Not the Baron's toll-keeper. He works for the Redtooth band camped in the old quarry lair. The 'writ' he waves is a stolen laundry receipt.",
+      "status": "at the bridge gate",
+      "ac": 13, "hp": 11
+    },
+    "Nib": {
+      "voice_note": "Small goblin holding the toll rope. Doesn't talk. Flinches at loud noises.",
+      "secret": "Half-starved conscript. Will bolt (and talk) if shown one act of kindness.",
+      "status": "holding the rope",
+      "ac": 12, "hp": 4
+    }
+  },
+  "clocks": [
+    {"name": "The Redtooth Muster", "segments": 4, "tick_on_scene_end": true}
+  ],
+  "beats": [
+    {
+      "id": "beat1",
+      "title": "The Toll",
+      "dm_notes": "A rope-and-plank bridge over the Millrun gorge. Grubb Marsh demands one silver a head, 'by order of the Baron'. He is lying. Let the party smell it.",
+      "secrets": [
+        "The toll sign is fresh paint over an older warning sign.",
+        "Grubb's 'writ' is a laundry receipt — anyone who reads it sees through him.",
+        "A merchant cart is due behind the party; Grubb gets greedy and doubles the toll."
+      ],
+      "pressure_budget_minutes": 8,
+      "whispers": [
+        {"seat": "seat2", "text": "That paint on the toll sign — same crude red slashes as the marks near the old quarry. This is NOT the Baron's toll. Press him.", "trigger": {"type": "turn_count", "value": 2}},
+        {"seat": "seat1", "text": "Baronial law: a legal toll requires a stamped writ, displayed on demand. Ask to see it.", "trigger": {"type": "turn_count", "value": 3}}
+      ],
+      "advance_when": ["toll_paid", "lie_exposed", "combat_start", "party_crosses"]
+    },
+    {
+      "id": "beat2",
+      "title": "The Truth on the Bridge",
+      "dm_notes": "The lie cracks or coin changes hands. If exposed, Grubb blusters, then whistles for two goblin skirmishers under the bridge. Nib wants out. Fail-forward: if the party is beaten, they wake robbed at the quarry mouth (Phase 2 hook).",
+      "secrets": [
+        "Two goblin skirmishers (AC 13, HP 7 each) cling under the bridge deck.",
+        "Nib will defect at the first act of mercy and point to the quarry lair.",
+        "The toll box holds 34 silver and a brass Redtooth signet — evidence."
+      ],
+      "pressure_budget_minutes": 10,
+      "whispers": [
+        {"seat": "seat3", "text": "The small goblin on the rope is half-starved and terrified. You feel a nudge, like a hand on your shoulder: mercy, here, matters.", "trigger": {"type": "tag", "value": "combat_start"}},
+        {"seat": "seat2", "text": "The toll box. Unattended when things get loud. It is CALLING you.", "trigger": {"type": "tag", "value": "combat_start"}}
+      ],
+      "advance_when": []
+    }
+  ]
+}
