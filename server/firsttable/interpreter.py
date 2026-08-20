@@ -1,8 +1,10 @@
 """Interpreter: classifies each DM input (LLM with a heuristic fallback).
 
-The heuristic path is pure code and doubles as cheap insurance: its scene
-tags are always merged into the LLM output so the director never misses a
-hard trigger.
+The heuristic path is pure code. When the LLM produces a valid result its
+scene tags stand on their own; only unambiguous heuristic tags (combat_start)
+are unioned in, because keyword substrings misfire on natural DM phrasing
+("Pay the toll or turn back" is a demand, not a payment) and a false tag
+irreversibly advances the beat.
 """
 from . import rules
 from .llm import LLMError
@@ -41,9 +43,16 @@ _COMBAT_WORDS = ("attack", "initiative", "roll for damage")
 _RULING_WORDS = ("i rule", "ruling", "that works, but")
 _LIE_WORDS = ("liar", "fake", "forged", "laundry receipt", "caught you")
 _MERCY_WORDS = ("spare", "mercy", "let him go", "feeds", "kindness")
-_CROSS_WORDS = ("cross the bridge", "across the bridge")
-_PAY_WORDS = ("pay", "paid the toll", "hands over")
+# Completed-action phrasings only: a demand ("Pay the toll or turn back",
+# "one silver to cross the bridge") must not read as the thing having happened.
+_CROSS_WORDS = ("crosses the bridge", "crossed the bridge",
+                "make it across", "made it across")
+_PAY_WORDS = ("pays the toll", "paid the toll", "pays the silver",
+              "hands over", "coin changes hands")
 _TOLL_WORDS = ("toll", "silver")
+
+# Heuristic tags safe to union into a valid LLM interpretation.
+_ALWAYS_MERGE_TAGS = ("combat_start",)
 
 
 def _find_skill(low: str) -> str | None:
@@ -101,7 +110,7 @@ def _system_prompt(party: dict, recent: list[str]) -> str:
     roster = "; ".join(f"{seat} = {party[seat].name}" for seat in sorted(party))
     tags = "\n".join(f"- {tag}: {desc}" for tag, desc in _TAG_DEFINITIONS.items())
     lines = [
-        "You classify one Dungeon Master utterance at a 5E-compatible tabletop game.",
+        "You classify one DM utterance at a 5E-compatible tabletop game.",
         f"Party seats: {roster}.",
         f"intent is one of: {', '.join(INTENTS)}.",
         "addressed_seats: seats the DM speaks to directly (empty if none).",
@@ -148,10 +157,11 @@ async def interpret(provider, text: str, party: dict, recent: list[str]) -> dict
     out = _validate(raw, party)
     if out is None:
         return heuristic
-    # Union in the heuristic scene tags: the director must never miss a
-    # hard trigger because the LLM got creative.
+    # Union in only the unambiguous heuristic tags ("roll initiative" is a hard
+    # trigger); everything else defers to the validated LLM classification so a
+    # keyword misfire can't advance the beat.
     for tag in heuristic["scene_tags"]:
-        if tag not in out["scene_tags"]:
+        if tag in _ALWAYS_MERGE_TAGS and tag not in out["scene_tags"]:
             out["scene_tags"].append(tag)
     if out["skill"] is None:
         out["skill"] = heuristic["skill"]

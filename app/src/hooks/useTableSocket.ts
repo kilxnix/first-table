@@ -21,7 +21,11 @@ export function useTableSocket(campaignId: number) {
     const connect = () => {
       ws = new WebSocket(`${SERVER_WS}/ws/${campaignId}`);
       wsRef.current = ws;
-      ws.onopen = () => alive && setConnected(true);
+      ws.onopen = () => {
+        if (!alive) return;
+        setConnected(true);
+        setError(null);
+      };
       ws.onclose = () => { if (alive) { setConnected(false); retry = setTimeout(connect, 1500); } };
       ws.onmessage = (ev) => {
         if (!alive) return;
@@ -32,6 +36,9 @@ export function useTableSocket(campaignId: number) {
             setThread(frame.campaign.thread);
             setDmScreen(frame.campaign.dm_screen);
             setSceneActive(frame.campaign.scene_active);
+            // A typing frame whose typing_stop was lost to a disconnect would
+            // otherwise show "… is typing" forever; hello is a full snapshot.
+            setTyping({});
             break;
           case "message":
             setThread((t) => [...t, frame.message]);
@@ -61,7 +68,12 @@ export function useTableSocket(campaignId: number) {
   }, [campaignId]);
 
   const send = useCallback((obj: object) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify(obj));
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(obj));
+    } else {
+      // Never swallow input silently while reconnecting.
+      setError("Reconnecting to the table — that didn't send. Try again in a moment.");
+    }
   }, []);
   const sendDmInput = useCallback((text: string, mode: "voice" | "text") => send({ type: "dm_input", text, mode }), [send]);
   const sendRoll = useCallback((formula: string, label: string) => send({ type: "roll", formula, label }), [send]);

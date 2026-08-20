@@ -35,6 +35,18 @@ export const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ on
     recRef.current?.stop();
   }, []);
 
+  // If the bar becomes disabled mid-dictation (socket drop), stop the
+  // recognizer so the transcript isn't silently discarded on release.
+  useEffect(() => {
+    if (disabled && listening) {
+      try {
+        recRef.current?.stop();
+      } catch {
+        setListening(false);
+      }
+    }
+  }, [disabled, listening]);
+
   const showHint = useCallback((msg: string) => {
     setHint(msg);
     if (hintTimer.current) clearTimeout(hintTimer.current);

@@ -12,9 +12,11 @@ interface Props {
   onRoll: (formula: string, label: string) => void;
   /** The most recent roll message in the thread, shown big in the tray. */
   lastRoll: ThreadMessage | null;
+  /** Disables the roll buttons (e.g. while the socket is reconnecting). */
+  disabled?: boolean;
 }
 
-export function DiceTray({ visible, onClose, onRoll, lastRoll }: Props) {
+export function DiceTray({ visible, onClose, onRoll, lastRoll, disabled = false }: Props) {
   // Swipe down anywhere on the sheet header to close.
   const pan = useRef(
     PanResponder.create({
@@ -56,7 +58,9 @@ export function DiceTray({ visible, onClose, onRoll, lastRoll }: Props) {
               </>
             ) : (
               <Text style={styles.resultHintText}>
-                Roll for the table — results post to the thread.
+                {disabled
+                  ? "Reconnecting to the table…"
+                  : "Roll for the table — results post to the thread."}
               </Text>
             )}
           </View>
@@ -65,8 +69,13 @@ export function DiceTray({ visible, onClose, onRoll, lastRoll }: Props) {
             {DICE.map((d) => (
               <Pressable
                 key={d}
+                disabled={disabled}
                 onPress={() => onRoll(d, "Table roll")}
-                style={({ pressed }) => [styles.die, pressed && styles.diePressed]}
+                style={({ pressed }) => [
+                  styles.die,
+                  pressed && styles.diePressed,
+                  disabled && styles.dieDisabled,
+                ]}
               >
                 <Text style={styles.dieText}>{d}</Text>
               </Pressable>
@@ -76,8 +85,13 @@ export function DiceTray({ visible, onClose, onRoll, lastRoll }: Props) {
             {SHORTCUTS.map((d) => (
               <Pressable
                 key={d}
+                disabled={disabled}
                 onPress={() => onRoll(d, "Table roll")}
-                style={({ pressed }) => [styles.shortcut, pressed && styles.diePressed]}
+                style={({ pressed }) => [
+                  styles.shortcut,
+                  pressed && styles.diePressed,
+                  disabled && styles.dieDisabled,
+                ]}
               >
                 <Text style={styles.shortcutText}>{d}</Text>
               </Pressable>
@@ -151,6 +165,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   diePressed: { borderColor: theme.accent, backgroundColor: theme.dmBubble },
+  dieDisabled: { opacity: 0.4 },
   dieText: { color: theme.accent, fontSize: 16, fontWeight: "700" },
   shortcutRow: { flexDirection: "row", justifyContent: "center", gap: 10, marginTop: 10 },
   shortcut: {

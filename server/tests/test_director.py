@@ -29,11 +29,23 @@ def test_beat_advances_on_tag():
     assert ev.beat_changed == "beat2" and state["beat_index"] == 1
 
 
-def test_tag_whisper_fires_in_beat2():
+def test_tag_whisper_fires_on_the_advancing_turn():
+    # The turn that starts combat both advances to beat2 AND delivers beat2's
+    # combat_start whispers — the tag may never legitimately recur mid-combat.
     spine, state = load_spine(), fresh_state()
-    on_dm_turn(spine, state, interp(tags=["combat_start"]))     # advances to beat2
     ev = on_dm_turn(spine, state, interp(tags=["combat_start"]))
+    assert ev.beat_changed == "beat2"
     assert {w["seat"] for w in ev.whispers_fired} == {"seat2", "seat3"}
+    ev2 = on_dm_turn(spine, state, interp(tags=["combat_start"]))
+    assert ev2.whispers_fired == []          # beat-scoped keys: fire once
+
+
+def test_turn_count_triggers_wait_after_advance():
+    # dm_turn_count resets on advance, so a new beat's turn-count whispers
+    # (none in beat2, but the invariant matters) cannot fire prematurely.
+    spine, state = load_spine(), fresh_state()
+    on_dm_turn(spine, state, interp(tags=["lie_exposed"]))
+    assert state["dm_turn_count"] == 0
 
 
 def test_clock_ticks_on_scene_end():

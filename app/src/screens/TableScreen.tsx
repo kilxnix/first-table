@@ -155,7 +155,7 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: 
         <ChatThread thread={thread} typing={typing} party={state?.party ?? []} />
       )}
 
-      {sceneActive && <QuickChips onSend={sendChip} onPrefill={prefillChip} />}
+      {sceneActive && connected && <QuickChips onSend={sendChip} onPrefill={prefillChip} />}
       <InputBar ref={inputRef} onSend={sendDmInput} disabled={!sceneActive || !connected} />
 
       <DiceTray
@@ -163,6 +163,7 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: 
         onClose={() => setTrayOpen(false)}
         onRoll={sendRoll}
         lastRoll={lastRoll}
+        disabled={!connected}
       />
       <DMDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} dmScreen={dmScreen} />
     </KeyboardAvoidingView>

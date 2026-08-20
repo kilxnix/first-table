@@ -42,7 +42,10 @@ class Persona:
             "\"roll_request\": null | {\"kind\": \"check\"|\"attack\", \"ability\"?: str, "
             "\"skill\"?: str, \"target\"?: str}}.\n"
             "speech = words said aloud in character. action = short third-person physical action. "
-            "ooc = out-of-character table talk (usually empty). Use roll_request sparingly."
+            "ooc = out-of-character table talk (usually empty). Use roll_request sparingly. "
+            "skill must be snake_case from: perception, stealth, persuasion, deception, insight, "
+            "investigation, athletics, arcana, sleight_of_hand, intimidation, religion, survival; "
+            "ability is one of: str, dex, con, int, wis, cha."
         )
 
 

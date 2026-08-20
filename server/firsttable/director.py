@@ -22,13 +22,9 @@ def _active_beat(spine: Spine, state: dict) -> Beat:
     return spine.beats[index]
 
 
-def on_dm_turn(spine: Spine, state: dict, interp: dict) -> DirectorEvents:
-    events = DirectorEvents()
-    state["dm_turn_count"] = state.get("dm_turn_count", 0) + 1
-    tags = interp.get("scene_tags", [])
-
-    # 1. Whisper firing for the active beat (each whisper fires once).
-    beat = _active_beat(spine, state)
+def _fire_whispers(beat: Beat, state: dict, tags: list,
+                   events: DirectorEvents) -> None:
+    """Fire this beat's whispers whose triggers hit (each fires once)."""
     fired = state.setdefault("fired_whispers", [])
     pending = state.setdefault("pending_whispers", {})
     for i, whisper in enumerate(beat.whispers):
@@ -47,12 +43,28 @@ def on_dm_turn(spine: Spine, state: dict, interp: dict) -> DirectorEvents:
             pending.setdefault(whisper["seat"], []).append(whisper["text"])
             events.whispers_fired.append({"seat": whisper["seat"], "text": whisper["text"]})
 
+
+def on_dm_turn(spine: Spine, state: dict, interp: dict) -> DirectorEvents:
+    events = DirectorEvents()
+    state["dm_turn_count"] = state.get("dm_turn_count", 0) + 1
+    tags = interp.get("scene_tags", [])
+
+    # 1. Whisper firing for the active beat.
+    beat = _active_beat(spine, state)
+    _fire_whispers(beat, state, tags, events)
+
     # 2. Beat advance on any advance_when tag.
     index = state.get("beat_index", 0)
     if any(tag in beat.advance_when for tag in tags) and index + 1 < len(spine.beats):
         state["beat_index"] = index + 1
         state["dm_turn_count"] = 0
         events.beat_changed = spine.beats[index + 1].id
+        # Re-scan with the same turn's tags so the new beat's tag-triggered
+        # whispers fire on the very turn that opened it ("roll initiative"
+        # must deliver beat2's combat whispers, not wait for a tag that may
+        # never legitimately recur). Fired keys are beat-scoped, so nothing
+        # double-fires; dm_turn_count was reset, so turn-count triggers wait.
+        _fire_whispers(spine.beats[index + 1], state, tags, events)
 
     return events
 

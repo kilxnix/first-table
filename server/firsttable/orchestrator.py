@@ -5,6 +5,7 @@ Pipeline per DM input: Interpreter -> Director -> Turn Manager -> Agent Runner
 the same Table serves both the WebSocket and REST-triggered broadcasts.
 """
 import asyncio
+import logging
 import random
 import time
 
@@ -21,6 +22,8 @@ from .turn_manager import plan as plan_turn
 
 COLD_OPEN_DELAY = 0.6
 TAIL = 12
+
+logger = logging.getLogger("firsttable")
 
 
 def _default_state() -> dict:
@@ -81,7 +84,11 @@ class Table:
     async def _resolve_and_emit_roll(self, emit, persona, req: dict) -> None:
         try:
             res = rules.resolve_roll_request(persona.sheet, req, self.spine.npcs, self.rng)
-        except (rules.RulesError, DiceError):
+        except (rules.RulesError, DiceError) as exc:
+            # A bad LLM roll request must not kill the turn, but it must not
+            # vanish without a trace either.
+            logger.warning("dropped unresolvable roll_request %r from %s: %s",
+                           req, persona.name, exc)
             return
         view = {"formula": res["formula"], "rolls": res["rolls"],
                 "modifier": res["modifier"], "total": res["total"],
@@ -95,6 +102,11 @@ class Table:
         pending = self.state["pending_whispers"].pop(seat, [])
         whisper = "\n".join(pending) if pending else None
         reply = await run_agent(self.provider, persona, mode, self._thread_tail(), whisper)
+        if reply.pop("_fallback", False) and pending:
+            # The LLM call failed, so the whisper was never actually delivered;
+            # put it back so it reaches the agent on their next turn instead of
+            # being destroyed (fired_whispers means it can never re-fire).
+            self.state["pending_whispers"].setdefault(seat, [])[0:0] = pending
         await emit({"type": "typing_stop", "seat": seat})
         ts = time.time()
         await self._send_message(emit, protocol.agent_message(0, ts, seat, persona.name, reply))
@@ -118,6 +130,11 @@ class Table:
             await emit({"type": "scene", "status": "started",
                         "scene_id": self.scene_id, "report": None})
             if not self.state["cold_open_done"]:
+                # Mark and persist BEFORE playing the lines: a crash mid-cold-open
+                # must degrade to skipped lines, never to a full replay of the
+                # opener in a later scene.
+                self.state["cold_open_done"] = True
+                self._persist_state()
                 for entry in self.spine.cold_open:
                     seat = entry["seat"]
                     persona = self.personas[seat]
@@ -131,7 +148,6 @@ class Table:
                         emit, protocol.agent_message(0, ts, seat, persona.name, reply))
                     await emit({"type": "typing_stop", "seat": seat})
                     self.telemetry.record_agent(seat, ts)
-                self.state["cold_open_done"] = True
             else:
                 await self._send_message(
                     emit, protocol.system_message(
@@ -236,6 +252,9 @@ class Table:
                         "report": report})
             self.telemetry = SceneTelemetry()
             self.spotlight = SpotlightState(sorted(self.personas))
+            # An unanswered hesitation dies with its scene; carrying the flag
+            # over would credit next scene's report for answering it.
+            self.state["awaiting_hesitation"] = None
             self._persist_state()
             return report
 

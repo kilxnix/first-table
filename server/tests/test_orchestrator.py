@@ -85,3 +85,54 @@ def test_manual_roll_and_bad_formula():
     assert frames[-1]["message"]["roll"]["total"] >= 3
     asyncio.run(t.manual_roll("banana", "?", emit))
     assert frames[-1]["type"] == "error"
+
+
+def test_whisper_restored_when_llm_fails():
+    from firsttable.llm import LLMError
+
+    t = make_table()
+    frames, emit = collect()
+    asyncio.run(t.start_scene(emit))
+
+    class Boom:
+        async def complete_json(self, *a, **k):
+            raise LLMError("down")
+
+    t.provider = Boom()
+    t.state["pending_whispers"]["seat2"] = ["the sign paint matches the quarry marks"]
+    asyncio.run(t.handle_dm_input("Pix, the keeper glares at you.", "text", emit))
+    # run_agent fell back, so the undelivered whisper must survive for next turn
+    assert t.state["pending_whispers"].get("seat2") == [
+        "the sign paint matches the quarry marks"]
+
+
+def test_awaiting_hesitation_cleared_on_scene_end():
+    t = make_table()
+    frames, emit = collect()
+    asyncio.run(t.start_scene(emit))
+    asyncio.run(t.handle_dm_input("The wind howls.", "text", emit))
+    asyncio.run(t.handle_dm_input("The bridge sways.", "text", emit))
+    asyncio.run(t.handle_dm_input("Night falls.", "text", emit))
+    t.state["awaiting_hesitation"] = "seat3"
+    asyncio.run(t.end_scene(emit))
+    assert t.state["awaiting_hesitation"] is None
+
+
+def test_cold_open_done_persisted_before_lines_play():
+    t = make_table()
+
+    class Dies(Exception):
+        pass
+
+    sent = []
+
+    async def emit(f):
+        sent.append(f)
+        if f["type"] == "message":            # crash after the first cold-open line
+            raise Dies()
+
+    import pytest
+    with pytest.raises(Dies):
+        asyncio.run(t.start_scene(emit))
+    # A crash mid-cold-open must not queue a full replay in a later scene.
+    assert t.store.get_campaign(t.cid)["state"]["cold_open_done"] is True
