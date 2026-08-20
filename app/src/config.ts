@@ -13,6 +13,16 @@ const DEFAULT_HOST =
 
 const KEY = "firsttable.serverHost";
 
+/**
+ * Server pointer: a tiny hosted JSON ({"host": "https://…"}) naming the
+ * table's CURRENT public URL. The free tunnel URL rotates on restart, so
+ * fresh installs resolve it at launch instead of baking a stale address.
+ * A user-saved override always wins and skips the lookup.
+ */
+const POINTER_URL =
+  "https://gist.githubusercontent.com/kilxnix/ef10ece5c776378d6a3781fe13b155a3/raw/server.json";
+const POINTER_TIMEOUT_MS = 5000;
+
 let currentHost = DEFAULT_HOST;
 
 /**
@@ -32,13 +42,37 @@ function bases(): { http: string; ws: string } {
   return { http: `http://${authority}${path}`, ws: `ws://${authority}${path}` };
 }
 
-/** Load the persisted override (call once at app start, before any request). */
+async function resolvePointer(): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), POINTER_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${POINTER_URL}?t=${Date.now()}`, { signal: controller.signal });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { host?: unknown };
+    return typeof data.host === "string" && data.host.trim() ? data.host.trim() : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Resolve the server at app start: saved override > pointer > built-in
+ * default. The pointer result is NOT persisted, so every launch re-resolves
+ * the current public URL. */
 export async function loadServerHost(): Promise<string> {
   try {
     const saved = await AsyncStorage.getItem(KEY);
-    if (saved) currentHost = saved;
+    if (saved) {
+      currentHost = saved;
+      return currentHost;
+    }
   } catch {
-    // storage unavailable: stick with the default
+    // storage unavailable: continue with pointer/default
+  }
+  if (Platform.OS !== "web") {
+    const pointed = await resolvePointer();
+    if (pointed) currentHost = pointed;
   }
   return currentHost;
 }

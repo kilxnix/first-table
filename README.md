@@ -100,7 +100,12 @@ $env:FIRSTTABLE_WORKER_PROVIDER = "ollama"   # or anthropic / mock
 .venv\Scripts\python worker.py
 ```
 
-Then set **⚙ Table server** in the app to the tunnel URL. Worker API (bearer-token
+Phones find the table automatically: at launch (when you haven't saved an override)
+the app fetches a **server pointer** — a secret gist naming the current public URL —
+so a rotated tunnel URL never requires an APK rebuild. After restarting the tunnel run
+`.\tools\update-server-pointer.ps1 -Url https://<new>.trycloudflare.com`. You can
+always override manually via **⚙ Table server** on the Home screen (also reachable
+from the "Set server address" button when the server is unreachable). Worker API (bearer-token
 protected): `GET /api/hub/jobs?wait=25` long-polls for a job `{job_id, system,
 messages, schema}`; `POST /api/hub/jobs/{job_id}` submits `{result}` or `{error}`;
 `GET /api/hub/status` shows workers online. If a worker fails or nobody's connected,

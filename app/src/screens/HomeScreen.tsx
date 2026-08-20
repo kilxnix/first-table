@@ -134,9 +134,20 @@ export function HomeScreen({ onEnterTable }: Props) {
         {loadError ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{loadError}</Text>
-            <Pressable onPress={load} hitSlop={8}>
-              <Text style={styles.retryText}>Retry</Text>
-            </Pressable>
+            <View style={styles.errorActions}>
+              <Pressable onPress={load} hitSlop={8}>
+                <Text style={styles.retryText}>Retry</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setHostDraft(getServerHost());
+                  setEditingHost(true);
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.retryText}>Set server address</Text>
+              </Pressable>
+            </View>
           </View>
         ) : campaigns === null ? (
           <ActivityIndicator color={theme.accent} style={styles.spinner} />
@@ -281,6 +292,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   retryText: { color: theme.accent, fontSize: 13, fontFamily: fonts.display, letterSpacing: 0.5 },
+  errorActions: { flexDirection: "row", gap: 22 },
   spinner: { marginTop: 8 },
 
   listWrap: { alignSelf: "stretch" },
