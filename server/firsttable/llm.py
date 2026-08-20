@@ -187,4 +187,14 @@ def get_provider(cfg: Config) -> LLMProvider:
         return OllamaProvider(cfg)
     if cfg.provider == "anthropic":
         return AnthropicProvider(cfg)
+    if cfg.provider == "hub":
+        # Lazy import: hub imports LLMProvider/LLMError from this module.
+        from dataclasses import replace
+
+        from . import hub
+
+        if cfg.hub_fallback == "hub":
+            raise LLMError("hub_fallback cannot itself be 'hub'")
+        fallback = get_provider(replace(cfg, provider=cfg.hub_fallback))
+        return hub.RemoteProvider(hub.queue, fallback)
     raise LLMError(f"unknown provider: {cfg.provider!r}")

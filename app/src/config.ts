@@ -15,9 +15,17 @@ const KEY = "firsttable.serverHost";
 
 let currentHost = DEFAULT_HOST;
 
-/** Accepts "host" or "host:port"; a bare host gets the default port 8000. */
-function authority(): string {
-  return currentHost.includes(":") ? currentHost : `${currentHost}:8000`;
+/**
+ * Accepts "host", "host:port", or a full "http(s)://…" URL (e.g. a Cloudflare
+ * tunnel). Bare hosts get http + the default port 8000; https URLs get wss.
+ */
+function bases(): { http: string; ws: string } {
+  const entry = currentHost.replace(/\/+$/, "");
+  if (/^https?:\/\//i.test(entry)) {
+    return { http: entry, ws: entry.replace(/^http/i, "ws") };
+  }
+  const authority = entry.includes(":") ? entry : `${entry}:8000`;
+  return { http: `http://${authority}`, ws: `ws://${authority}` };
 }
 
 /** Load the persisted override (call once at app start, before any request). */
@@ -45,5 +53,5 @@ export async function setServerHost(host: string): Promise<string> {
   return currentHost;
 }
 
-export const httpBase = (): string => `http://${authority()}`;
-export const wsBase = (): string => `ws://${authority()}`;
+export const httpBase = (): string => bases().http;
+export const wsBase = (): string => bases().ws;

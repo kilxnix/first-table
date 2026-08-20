@@ -74,9 +74,39 @@ The suite runs fully offline against the deterministic `mock` provider.
 | `mock` (default) | Canned in-character replies, heuristic interpreter | Tests, offline demo |
 | `ollama` | Local Ollama, `FIRSTTABLE_OLLAMA_MODEL` (default `qwen3.5:9b`) | Free local dev |
 | `anthropic` | Claude API, `FIRSTTABLE_ANTHROPIC_MODEL` (default `claude-haiku-4-5`, per spec §10 tiering; needs `ANTHROPIC_API_KEY`) | Production quality |
+| `hub` | Remote agent workers (below); falls back to `FIRSTTABLE_HUB_FALLBACK` (default `mock`) when no worker is online | Public server, agents elsewhere |
 
 Other env vars: `FIRSTTABLE_DB` (SQLite path), `FIRSTTABLE_SEED` (deterministic dice),
-`FIRSTTABLE_OLLAMA_URL`.
+`FIRSTTABLE_OLLAMA_URL`, `FIRSTTABLE_HUB_TOKEN` (worker auth; generated + logged if unset).
+
+## Agent hub — play from anywhere, run agents anywhere
+
+In `hub` mode the server queues each agent/interpreter LLM call as a **job**; any number
+of **workers** connect *outbound*, claim jobs, run inference with whatever model they
+have, and post the moves back. The device serving the table needs no model or keys.
+
+```powershell
+# 1. The hub (public table server)
+$env:FIRSTTABLE_PROVIDER = "hub"; $env:FIRSTTABLE_HUB_TOKEN = "<pick-a-secret>"
+.venv\Scripts\python run.py
+
+# 2. Make it public (free quick tunnel; URL changes per restart)
+cloudflared tunnel --url http://localhost:8000
+
+# 3. A worker, on any machine with Python + an LLM
+$env:FIRSTTABLE_HUB_URL = "https://<your-tunnel>.trycloudflare.com"
+$env:FIRSTTABLE_HUB_TOKEN = "<same-secret>"
+$env:FIRSTTABLE_WORKER_PROVIDER = "ollama"   # or anthropic / mock
+.venv\Scripts\python worker.py
+```
+
+Then set **⚙ Table server** in the app to the tunnel URL. Worker API (bearer-token
+protected): `GET /api/hub/jobs?wait=25` long-polls for a job `{job_id, system,
+messages, schema}`; `POST /api/hub/jobs/{job_id}` submits `{result}` or `{error}`;
+`GET /api/hub/status` shows workers online. If a worker fails or nobody's connected,
+the table degrades gracefully (fallback provider / safe in-character fallbacks) —
+a scene never stalls. Note: game endpoints are unauthenticated in this slice; the
+quick-tunnel URL is unlisted but treat it as semi-public and rotate it freely.
 
 ## Layout
 

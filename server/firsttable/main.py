@@ -1,17 +1,28 @@
-"""FastAPI app: locked REST + one WebSocket per campaign."""
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+"""FastAPI app: locked REST + one WebSocket per campaign + the agent hub."""
+import logging
+import secrets
+
+from fastapi import FastAPI, Header, HTTPException, Query, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import protocol
+from . import hub, protocol
 from .config import load_config
 from .db import Store
 from .llm import get_provider
 from .orchestrator import Table
 
+logger = logging.getLogger("firsttable")
+
 cfg = load_config()
 store = Store(cfg.db_path)
 provider = get_provider(cfg)
+
+# Worker endpoints always require a bearer token; generate one if unset so a
+# publicly tunneled hub is never open to arbitrary move injection.
+hub_token = cfg.hub_token or secrets.token_urlsafe(16)
+if cfg.hub_token is None:
+    logger.warning("FIRSTTABLE_HUB_TOKEN not set - generated worker token: %s", hub_token)
 
 app = FastAPI(title="First Table")
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
@@ -96,6 +107,53 @@ async def end_scene(cid: int):
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {"report": report}
+
+
+# -- Agent hub (remote workers) ------------------------------------------------
+
+def _check_worker_auth(authorization: str | None) -> None:
+    expected = f"Bearer {hub_token}"
+    if not authorization or not secrets.compare_digest(authorization, expected):
+        raise HTTPException(status_code=401, detail="bad or missing hub token")
+
+
+class JobResultBody(BaseModel):
+    result: dict | None = None
+    error: str | None = None
+
+
+@app.get("/api/hub/jobs")
+async def claim_job(
+    wait: float = Query(default=25.0, ge=0.0, le=30.0),
+    authorization: str | None = Header(default=None),
+    x_worker_name: str = Header(default="worker"),
+):
+    _check_worker_auth(authorization)
+    job = await hub.queue.claim(wait, x_worker_name)
+    if job is None:
+        return Response(status_code=204)
+    return job
+
+
+@app.post("/api/hub/jobs/{job_id}")
+async def submit_job(
+    job_id: str,
+    body: JobResultBody,
+    authorization: str | None = Header(default=None),
+    x_worker_name: str = Header(default="worker"),
+):
+    _check_worker_auth(authorization)
+    hub.queue.note_worker(x_worker_name)
+    if not hub.queue.resolve(job_id, body.result, body.error):
+        raise HTTPException(status_code=404, detail="unknown or expired job")
+    return {"ok": True}
+
+
+@app.get("/api/hub/status")
+def hub_status():
+    return {"provider": cfg.provider,
+            "workers_online": hub.queue.workers_online(),
+            "pending_jobs": hub.queue.pending()}
 
 
 # -- WebSocket -------------------------------------------------------------------

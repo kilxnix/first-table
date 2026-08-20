@@ -4,12 +4,14 @@ from dataclasses import dataclass
 
 @dataclass
 class Config:
-    provider: str = "mock"          # mock | ollama | anthropic
+    provider: str = "mock"          # mock | ollama | anthropic | hub
     ollama_model: str = "qwen3.5:9b"
     ollama_url: str = "http://localhost:11434"
     anthropic_model: str = "claude-haiku-4-5"
     db_path: str = "firsttable.db"
     seed: int | None = None
+    hub_token: str | None = None    # bearer token for worker endpoints
+    hub_fallback: str = "mock"      # provider used when no worker is online
 
 
 def load_config() -> Config:
@@ -21,4 +23,6 @@ def load_config() -> Config:
         anthropic_model=os.environ.get("FIRSTTABLE_ANTHROPIC_MODEL", "claude-haiku-4-5"),
         db_path=os.environ.get("FIRSTTABLE_DB", "firsttable.db"),
         seed=int(seed) if seed else None,
+        hub_token=os.environ.get("FIRSTTABLE_HUB_TOKEN") or None,
+        hub_fallback=os.environ.get("FIRSTTABLE_HUB_FALLBACK", "mock"),
     )

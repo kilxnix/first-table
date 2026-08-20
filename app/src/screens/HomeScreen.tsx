@@ -182,7 +182,7 @@ export function HomeScreen({ onEnterTable }: Props) {
                 autoFocus
                 autoCapitalize="none"
                 autoCorrect={false}
-                placeholder="192.168.1.20 or host:8000"
+                placeholder="192.168.1.20 or https://…trycloudflare.com"
                 placeholderTextColor={theme.faint}
               />
               <Pressable onPress={saveHost} hitSlop={8}>
