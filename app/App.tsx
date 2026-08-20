@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useState } from "react";
-import { Platform, SafeAreaView, StyleSheet, View } from "react-native";
+import { Platform, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { useAppFonts } from "./src/fonts";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { ReportCardScreen } from "./src/screens/ReportCardScreen";
 import { TableScreen } from "./src/screens/TableScreen";
@@ -13,6 +14,7 @@ type Screen =
   | { screen: "report"; campaignId: number; report: Report };
 
 export default function App() {
+  const fontsReady = useAppFonts();
   const [screen, setScreen] = useState<Screen>({ screen: "home" });
 
   const enterTable = useCallback(
@@ -27,6 +29,14 @@ export default function App() {
       ),
     []
   );
+
+  if (!fontsReady) {
+    return (
+      <View style={[styles.page, styles.splash]}>
+        <Text style={styles.splashFlame}>{"\u{1F56F}️"}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.page}>
@@ -52,7 +62,9 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#0b0908" },
+  page: { flex: 1, backgroundColor: "#0a0705" },
+  splash: { alignItems: "center", justifyContent: "center" },
+  splashFlame: { fontSize: 40 },
   phone: {
     flex: 1,
     width: "100%",
