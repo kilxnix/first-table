@@ -2,19 +2,21 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fonts, seatColor, theme } from "../theme";
 import { BeatView, DMScreenState, PartyMember } from "../types";
 
 const NATIVE = Platform.OS !== "web";
-const DRAWER_WIDTH = Math.min(390, Math.round(Dimensions.get("window").width * 0.88));
+/** Roomy but never wider than the screen it slides over. */
+const MAX_DRAWER_WIDTH = 390;
 
 interface Props {
   visible: boolean;
@@ -43,6 +45,12 @@ export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
   const [mounted, setMounted] = useState(visible);
   const [peekSeat, setPeekSeat] = useState<string | null>(null);
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  // Recomputed every render from the live window, so a rotation can never
+  // leave the drawer wider than the screen (or parked half-open off it).
+  const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const drawerWidth = Math.min(MAX_DRAWER_WIDTH, windowWidth, Math.round(windowWidth * 0.88));
+  const narrowDrawer = drawerWidth < 320;
 
   useEffect(() => {
     if (visible) {
@@ -62,7 +70,7 @@ export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
 
   if (!mounted) return null;
 
-  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [DRAWER_WIDTH, 0] });
+  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [drawerWidth, 0] });
 
   return (
     // pointerEvents gated on `visible`, not on the animation: the close
@@ -75,26 +83,44 @@ export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
-      <Animated.View style={[styles.drawer, { width: DRAWER_WIDTH, transform: [{ translateX }] }]}>
+      <Animated.View style={[styles.drawer, { width: drawerWidth, transform: [{ translateX }] }]}>
         <LinearGradient
           colors={[theme.panel, theme.bg]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}
         />
-        <View style={styles.drawerHeader}>
+        <View
+          style={[
+            styles.drawerHeader,
+            { paddingTop: 13 + insets.top, paddingRight: 14 + insets.right },
+          ]}
+        >
           <Pressable onPress={onClose} hitSlop={10} style={styles.closeHandle}>
-            <Text style={styles.closeText}>{"‹"} close</Text>
+            <Text style={styles.closeText} numberOfLines={1}>
+              {"‹"} close
+            </Text>
           </Pressable>
-          <Text style={styles.drawerTitle}>
+          <Text
+            style={[styles.drawerTitle, narrowDrawer && styles.drawerTitleNarrow]}
+            numberOfLines={1}
+          >
             <Text style={styles.drawerTitleStar}>{"✦"} </Text>
             DM Screen — private
           </Text>
         </View>
 
         {dmScreen ? (
-          <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-            <Text style={styles.spineTitle}>{dmScreen.spine_title}</Text>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingRight: 14 + insets.right, paddingBottom: 32 + insets.bottom },
+            ]}
+          >
+            <Text style={styles.spineTitle} numberOfLines={2}>
+              {dmScreen.spine_title}
+            </Text>
 
             <SectionTitle>Beats</SectionTitle>
             {dmScreen.beats.map((beat) => (
@@ -107,6 +133,7 @@ export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
                   </Text>
                   <Text
                     style={[styles.beatTitle, beat.status === "locked" && styles.beatTitleLocked]}
+                    numberOfLines={2}
                   >
                     {beat.title}
                   </Text>
@@ -128,8 +155,10 @@ export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
             <SectionTitle>Clocks</SectionTitle>
             {dmScreen.clocks.map((clock) => (
               <View key={clock.name} style={styles.clockRow}>
-                <Text style={styles.clockName}>{clock.name}</Text>
-                <Text style={styles.clockPips}>
+                <Text style={styles.clockName} numberOfLines={1}>
+                  {clock.name}
+                </Text>
+                <Text style={styles.clockPips} numberOfLines={1}>
                   <Text style={styles.clockFilled}>{"●".repeat(clock.filled)}</Text>
                   <Text style={styles.clockEmpty}>
                     {"○".repeat(Math.max(0, clock.segments - clock.filled))}
@@ -142,8 +171,12 @@ export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
             {dmScreen.npcs.map((npc) => (
               <View key={npc.name} style={styles.npcCard}>
                 <View style={styles.npcHead}>
-                  <Text style={styles.npcName}>{npc.name}</Text>
-                  <Text style={styles.npcStatus}>{npc.status}</Text>
+                  <Text style={styles.npcName} numberOfLines={1}>
+                    {npc.name}
+                  </Text>
+                  <Text style={styles.npcStatus} numberOfLines={1}>
+                    {npc.status}
+                  </Text>
                 </View>
                 <Text style={styles.npcVoice}>{npc.voice_note}</Text>
                 <Text style={styles.npcSecret}>
@@ -164,7 +197,10 @@ export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
                   style={styles.partyRow}
                 >
                   <View style={styles.partyHead}>
-                    <Text style={[styles.partyName, { color: seatColor(member.seat) }]}>
+                    <Text
+                      style={[styles.partyName, { color: seatColor(member.seat) }]}
+                      numberOfLines={1}
+                    >
                       {member.name}
                     </Text>
                     <Text style={styles.peekHint}>{peeking ? "▾" : "▸"}</Text>
@@ -235,15 +271,16 @@ const styles = StyleSheet.create({
     borderLeftColor: theme.accent,
     borderLeftWidth: 2,
   },
+  // paddingTop / paddingRight are supplied per-render (top + right insets).
   drawerHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingLeft: 14,
+    paddingBottom: 13,
     borderBottomColor: theme.hairline,
     borderBottomWidth: 1,
   },
-  closeHandle: { marginRight: 12 },
+  closeHandle: { marginRight: 12, flexShrink: 0 },
   closeText: { color: theme.dim, fontSize: 13 },
   drawerTitle: {
     color: theme.accent,
@@ -251,11 +288,16 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     letterSpacing: 1.5,
     textTransform: "uppercase",
+    flexShrink: 1,
+    minWidth: 0,
   },
+  /** One step tighter so the label still reads whole on a 320pt phone. */
+  drawerTitleNarrow: { fontSize: 12, letterSpacing: 0.8 },
   drawerTitleStar: { color: theme.accentBright },
 
   scroll: { flex: 1 },
-  scrollContent: { padding: 14, paddingBottom: 32 },
+  // paddingRight / paddingBottom are supplied per-render (right + bottom insets).
+  scrollContent: { paddingLeft: 14, paddingTop: 14 },
   spineTitle: {
     color: theme.text,
     fontSize: 18,
@@ -276,9 +318,16 @@ const styles = StyleSheet.create({
 
   beat: { marginBottom: 8 },
   beatHead: { flexDirection: "row", alignItems: "center" },
-  beatGlyph: { color: theme.faint, fontSize: 13, width: 22 },
+  beatGlyph: { color: theme.faint, fontSize: 13, width: 22, flexShrink: 0 },
   beatGlyphActive: { color: theme.accentBright },
-  beatTitle: { color: theme.text, fontSize: 14, fontFamily: fonts.display, letterSpacing: 0.3 },
+  beatTitle: {
+    color: theme.text,
+    fontSize: 14,
+    fontFamily: fonts.display,
+    letterSpacing: 0.3,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   beatTitleLocked: { color: theme.faint },
   beatBody: {
     marginLeft: 22,
@@ -314,8 +363,14 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     marginBottom: 6,
   },
-  clockName: { color: theme.text, fontSize: 14, fontFamily: fonts.speech },
-  clockPips: { fontSize: 16, letterSpacing: 3.5 },
+  clockName: {
+    color: theme.text,
+    fontSize: 14,
+    fontFamily: fonts.speech,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  clockPips: { fontSize: 16, letterSpacing: 3.5, flexShrink: 0, marginLeft: 8 },
   clockFilled: { color: theme.danger },
   clockEmpty: { color: theme.faint },
 
@@ -328,8 +383,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   npcHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  npcName: { color: theme.text, fontSize: 14, fontFamily: fonts.display, letterSpacing: 0.3 },
-  npcStatus: { color: theme.dim, fontSize: 12 },
+  npcName: {
+    color: theme.text,
+    fontSize: 14,
+    fontFamily: fonts.display,
+    letterSpacing: 0.3,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  // Capped so a wordy status can never crowd the name off its own card.
+  npcStatus: { color: theme.dim, fontSize: 12, flexShrink: 0, maxWidth: "45%", marginLeft: 8 },
   npcVoice: {
     color: theme.dim,
     fontSize: 14,
@@ -347,8 +410,15 @@ const styles = StyleSheet.create({
 
   partyRow: { marginBottom: 12 },
   partyHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  partyName: { fontSize: 13, fontFamily: fonts.display, letterSpacing: 0.5, marginBottom: 4 },
-  peekHint: { color: theme.faint, fontSize: 12 },
+  partyName: {
+    fontSize: 13,
+    fontFamily: fonts.display,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  peekHint: { color: theme.faint, fontSize: 12, flexShrink: 0, marginLeft: 8 },
   peek: {
     marginTop: 6,
     paddingLeft: 10,

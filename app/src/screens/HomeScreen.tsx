@@ -8,8 +8,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as api from "../api";
 import { MoodCanvas } from "../components/MoodCanvas";
 import { getServerHost, setServerHost } from "../config";
@@ -43,6 +45,13 @@ export function HomeScreen({ onEnterTable }: Props) {
   const [creating, setCreating] = useState(false);
   const [editingHost, setEditingHost] = useState(false);
   const [hostDraft, setHostDraft] = useState(getServerHost);
+
+  // Live bounds: insets keep the hero clear of the notch and the attribution
+  // clear of the gesture bar; the width drives a modest narrow-screen scale.
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const narrow = width < 360;
+  const gutter = narrow ? 16 : 24;
 
   // Decorative hero entrance + candle-glow pulse. Both start from a visible
   // state so a stalled animation frame (hidden tab) still shows the screen.
@@ -110,7 +119,16 @@ export function HomeScreen({ onEnterTable }: Props) {
   return (
     <View style={styles.screen}>
       <MoodCanvas mood="dusk" />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: 52 + insets.top,
+            paddingLeft: gutter + insets.left,
+            paddingRight: gutter + insets.right,
+          },
+        ]}
+      >
         <Animated.View
           style={[styles.hero, { opacity: heroOpacity, transform: [{ translateY: heroShift }] }]}
         >
@@ -120,7 +138,9 @@ export function HomeScreen({ onEnterTable }: Props) {
             />
             <Text style={styles.crest}>{"\u{1F56F}"}️</Text>
           </View>
-          <Text style={styles.title}>First Table</Text>
+          <Text style={[styles.title, narrow && styles.titleNarrow]} numberOfLines={1}>
+            First Table
+          </Text>
           <Text style={styles.tagline}>Run your first table before you run your first table.</Text>
         </Animated.View>
 
@@ -161,7 +181,9 @@ export function HomeScreen({ onEnterTable }: Props) {
                 style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
               >
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardName}>{c.name}</Text>
+                  <Text style={styles.cardName} numberOfLines={1} ellipsizeMode="tail">
+                    {c.name}
+                  </Text>
                   <View style={styles.cardMeta}>
                     <View style={styles.portraitRow}>
                       {PARTY_PORTRAITS.map((p, i) => (
@@ -203,7 +225,7 @@ export function HomeScreen({ onEnterTable }: Props) {
                 placeholder="192.168.1.20 or https://…trycloudflare.com"
                 placeholderTextColor={theme.faint}
               />
-              <Pressable onPress={saveHost} hitSlop={8}>
+              <Pressable onPress={saveHost} hitSlop={8} style={styles.serverSaveBtn}>
                 <Text style={styles.serverSave}>Save</Text>
               </Pressable>
             </>
@@ -214,22 +236,39 @@ export function HomeScreen({ onEnterTable }: Props) {
                 setEditingHost(true);
               }}
               hitSlop={8}
+              style={styles.serverPress}
             >
-              <Text style={styles.serverText}>
-                {"⚙"} Table server: {getServerHost()}
+              <Text style={styles.serverLabel}>{"⚙"} Table server:</Text>
+              {/* A tunnel URL is one unbreakable token — middle-truncate it
+                  rather than let it push past both edges of the screen. */}
+              <Text style={styles.serverText} numberOfLines={1} ellipsizeMode="middle">
+                {getServerHost()}
               </Text>
             </Pressable>
           )}
         </View>
       </ScrollView>
-      <Text style={styles.attribution}>{ATTRIBUTION}</Text>
+      <Text
+        style={[
+          styles.attribution,
+          {
+            paddingBottom: 16 + insets.bottom,
+            paddingLeft: gutter + insets.left,
+            paddingRight: gutter + insets.right,
+          },
+        ]}
+      >
+        {ATTRIBUTION}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.bg },
-  content: { padding: 24, paddingTop: 52, alignItems: "center" },
+  // Horizontal padding + paddingTop are supplied per-render (safe-area insets
+  // and a narrower gutter on small screens); paddingBottom stays constant.
+  content: { paddingBottom: 24, alignItems: "center" },
 
   hero: { alignItems: "center" },
   crestWrap: { alignItems: "center", justifyContent: "center", marginBottom: 12 },
@@ -248,6 +287,8 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
     textAlign: "center",
   },
+  /** Same face, one step down so the wordmark clears a 320pt screen. */
+  titleNarrow: { fontSize: 28, letterSpacing: 3 },
   tagline: {
     color: theme.dim,
     fontSize: 15,
@@ -316,8 +357,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardPressed: { borderColor: theme.accent },
-  cardBody: { flex: 1 },
-  cardName: { color: theme.text, fontSize: 15, fontFamily: fonts.display, letterSpacing: 0.5 },
+  cardBody: { flex: 1, minWidth: 0 },
+  cardName: {
+    color: theme.text,
+    fontSize: 15,
+    fontFamily: fonts.display,
+    letterSpacing: 0.5,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   cardMeta: { flexDirection: "row", alignItems: "center", marginTop: 7 },
   portraitRow: { flexDirection: "row" },
   portrait: {
@@ -331,8 +379,8 @@ const styles = StyleSheet.create({
   },
   portraitOverlap: { marginLeft: -7 },
   portraitGlyph: { fontSize: 12 },
-  cardDate: { color: theme.faint, fontSize: 12, marginLeft: 10 },
-  cardChevron: { color: theme.accentBright, fontSize: 22, marginLeft: 8 },
+  cardDate: { color: theme.faint, fontSize: 12, marginLeft: 10, flexShrink: 1, minWidth: 0 },
+  cardChevron: { color: theme.accentBright, fontSize: 22, marginLeft: 8, flexShrink: 0 },
 
   emptyText: {
     color: theme.dim,
@@ -341,14 +389,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  // Stretched to the content box so its children measure against the screen,
+  // never against their own (unbounded) natural width.
   serverRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "stretch",
     marginTop: 26,
     minHeight: 34,
   },
-  serverText: { color: theme.faint, fontSize: 12 },
+  serverPress: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: "100%",
+  },
+  serverLabel: { color: theme.faint, fontSize: 12, flexShrink: 0, marginRight: 4 },
+  serverText: { color: theme.faint, fontSize: 12, flexShrink: 1, minWidth: 0 },
   serverInput: {
     color: theme.text,
     fontSize: 13,
@@ -358,17 +417,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    minWidth: 220,
+    flex: 1,
+    minWidth: 120,
     marginRight: 10,
   },
+  serverSaveBtn: { flexShrink: 0 },
   serverSave: { color: theme.accent, fontSize: 13, fontFamily: fonts.display },
 
+  // paddingBottom / horizontal padding are supplied per-render (insets).
   attribution: {
     color: theme.systemText,
     fontSize: 11,
     textAlign: "center",
-    paddingHorizontal: 24,
-    paddingBottom: 16,
     lineHeight: 16,
   },
 });

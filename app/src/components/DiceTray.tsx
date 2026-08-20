@@ -1,11 +1,23 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef, useState } from "react";
-import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Modal,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fonts, theme } from "../theme";
 import { ThreadMessage } from "../types";
 
 const DICE = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
 const SHORTCUTS = ["2d6", "d20+5"];
+
+/** Sheet gutter; the gold seam bleeds back out over it, so they must agree. */
+const SHEET_PAD = 18;
 
 /** How long the decorative digit shuffle runs before settling on the real total. */
 const SHUFFLE_MS = 400;
@@ -22,6 +34,14 @@ interface Props {
 }
 
 export function DiceTray({ visible, onClose, onRoll, lastRoll, disabled = false }: Props) {
+  // Live bounds: the sheet is anchored to the bottom edge, so it owes the
+  // gesture bar its inset; the side insets keep it clear of a landscape notch.
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const padLeft = SHEET_PAD + insets.left;
+  const padRight = SHEET_PAD + insets.right;
+  const narrow = windowWidth < 340;
+
   // Swipe down anywhere on the sheet header to close.
   const pan = useRef(
     PanResponder.create({
@@ -73,12 +93,21 @@ export function DiceTray({ visible, onClose, onRoll, lastRoll, disabled = false 
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={styles.sheet}>
+        <View
+          style={[
+            styles.sheet,
+            {
+              paddingLeft: padLeft,
+              paddingRight: padRight,
+              paddingBottom: 26 + insets.bottom,
+            },
+          ]}
+        >
           <LinearGradient
             colors={[theme.accentDeep, theme.accentBright, theme.accentDeep]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={styles.topEdge}
+            style={[styles.topEdge, { marginLeft: -padLeft, marginRight: -padRight }]}
           />
           <View style={styles.grabberZone} {...pan.panHandlers}>
             <Pressable onPress={onClose} hitSlop={12}>
@@ -95,17 +124,19 @@ export function DiceTray({ visible, onClose, onRoll, lastRoll, disabled = false 
                 >
                   {shuffleDigits ?? roll.total}
                 </Text>
-                <Text style={styles.resultLabel}>
+                <Text style={styles.resultLabel} numberOfLines={1} ellipsizeMode="tail">
                   {roll.label} — {roll.actor}
                 </Text>
-                <Text style={styles.resultDice}>
+                <Text style={styles.resultDice} numberOfLines={1} ellipsizeMode="tail">
                   {roll.formula} {"→"} [{roll.rolls.join(" ")}]
                   {roll.modifier !== 0
                     ? ` ${roll.modifier > 0 ? `+${roll.modifier}` : roll.modifier}`
                     : ""}
                 </Text>
                 {roll.outcome && roll.outcome !== String(roll.total) ? (
-                  <Text style={styles.resultOutcome}>{roll.outcome}</Text>
+                  <Text style={styles.resultOutcome} numberOfLines={1}>
+                    {roll.outcome}
+                  </Text>
                 ) : null}
               </>
             ) : (
@@ -125,11 +156,14 @@ export function DiceTray({ visible, onClose, onRoll, lastRoll, disabled = false 
                 onPress={() => onRoll(d, "Table roll")}
                 style={({ pressed }) => [
                   styles.die,
+                  narrow && styles.dieNarrow,
                   pressed && styles.diePressed,
                   disabled && styles.dieDisabled,
                 ]}
               >
-                <Text style={styles.dieText}>{d}</Text>
+                <Text style={styles.dieText} numberOfLines={1}>
+                  {d}
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -141,11 +175,14 @@ export function DiceTray({ visible, onClose, onRoll, lastRoll, disabled = false 
                 onPress={() => onRoll(d, "Table roll")}
                 style={({ pressed }) => [
                   styles.shortcut,
+                  narrow && styles.shortcutNarrow,
                   pressed && styles.diePressed,
                   disabled && styles.dieDisabled,
                 ]}
               >
-                <Text style={styles.shortcutText}>{d}</Text>
+                <Text style={styles.shortcutText} numberOfLines={1}>
+                  {d}
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -165,6 +202,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "rgba(0,0,0,0.55)",
   },
+  // Horizontal padding + paddingBottom are supplied per-render (safe-area
+  // insets); width/maxWidth keep the sheet inside even a 320pt screen.
   sheet: {
     backgroundColor: theme.panel,
     borderTopLeftRadius: 20,
@@ -172,15 +211,13 @@ const styles = StyleSheet.create({
     borderColor: theme.hairline,
     borderWidth: 1,
     borderBottomWidth: 0,
-    paddingHorizontal: 18,
-    paddingBottom: 26,
     width: "100%",
     maxWidth: 520,
     alignSelf: "center",
     overflow: "hidden",
   },
-  /** Candle-gold seam along the lip of the tray. */
-  topEdge: { height: 3, marginHorizontal: -18 },
+  /** Candle-gold seam along the lip of the tray (bleeds over the gutter). */
+  topEdge: { height: 3 },
   grabberZone: { alignItems: "center", paddingTop: 10, paddingBottom: 4 },
   grabber: {
     width: 44,
@@ -211,13 +248,29 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   resultTotalRolling: { color: theme.accent },
-  resultLabel: { color: theme.text, fontSize: 14, fontFamily: fonts.speech, marginTop: 2 },
-  resultDice: { color: theme.dim, fontSize: 13, marginTop: 3, fontVariant: ["tabular-nums"] },
+  resultLabel: {
+    color: theme.text,
+    fontSize: 14,
+    fontFamily: fonts.speech,
+    marginTop: 2,
+    alignSelf: "stretch",
+    textAlign: "center",
+  },
+  resultDice: {
+    color: theme.dim,
+    fontSize: 13,
+    marginTop: 3,
+    fontVariant: ["tabular-nums"],
+    alignSelf: "stretch",
+    textAlign: "center",
+  },
   resultOutcome: {
     color: theme.ember,
     fontSize: 15,
     fontFamily: fonts.speechBold,
     marginTop: 4,
+    alignSelf: "stretch",
+    textAlign: "center",
   },
   resultHintText: {
     color: theme.dim,
@@ -251,9 +304,17 @@ const styles = StyleSheet.create({
     backgroundColor: theme.dmBubble,
     transform: [{ translateY: 1 }],
   },
+  /** One step down so four tiles per row still clear a 320pt screen. */
+  dieNarrow: { width: 56, height: 48 },
   dieDisabled: { opacity: 0.4 },
   dieText: { color: theme.accent, fontSize: 15, fontFamily: fonts.display },
-  shortcutRow: { flexDirection: "row", justifyContent: "center", gap: 10, marginTop: 12 },
+  shortcutRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 12,
+  },
   shortcut: {
     borderRadius: 999,
     backgroundColor: theme.raised,
@@ -261,6 +322,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 22,
     paddingVertical: 9,
+    flexShrink: 1,
   },
+  shortcutNarrow: { paddingHorizontal: 16 },
   shortcutText: { color: theme.text, fontSize: 13, fontFamily: fonts.display },
 });
