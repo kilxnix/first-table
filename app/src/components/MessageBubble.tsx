@@ -129,13 +129,14 @@ const styles = StyleSheet.create({
   groupedSpacing: { marginTop: 3 },
 
   // system
-  systemRow: { alignItems: "center", paddingHorizontal: 24 },
+  systemRow: { alignItems: "center", paddingHorizontal: 24, maxWidth: "100%" },
   systemText: {
     color: theme.systemText,
     fontFamily: fonts.speechItalic,
     fontSize: 12.5,
     textAlign: "center",
     lineHeight: 18,
+    maxWidth: "100%",
   },
 
   // beat divider
@@ -144,9 +145,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 18,
+    maxWidth: "100%",
   },
   beatLine: {
     flex: 1,
+    minWidth: 0,
     height: StyleSheet.hairlineWidth,
     backgroundColor: "rgba(224, 168, 63, 0.45)",
   },
@@ -154,6 +157,7 @@ const styles = StyleSheet.create({
     color: theme.accentDeep,
     fontSize: 10,
     marginHorizontal: 8,
+    flexShrink: 0,
   },
   beatTitle: {
     color: theme.accent,
@@ -161,10 +165,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     letterSpacing: 2,
     maxWidth: "70%",
+    // A long beat title truncates instead of pushing the rules off-screen.
+    flexShrink: 1,
+    minWidth: 0,
   },
 
   // roll — the dice slate
-  rollRow: { alignItems: "center" },
+  rollRow: { alignItems: "center", maxWidth: "100%" },
   rollCard: {
     backgroundColor: theme.raised,
     borderColor: "rgba(224, 168, 63, 0.4)",
@@ -187,6 +194,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 1.5,
     marginBottom: 2,
+    maxWidth: "100%",
   },
   rollTotal: {
     color: theme.text,
@@ -212,12 +220,16 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontVariant: ["tabular-nums"],
     marginTop: 2,
+    maxWidth: "100%",
+    textAlign: "center",
   },
   rollOutcome: {
     color: theme.accent,
     fontFamily: fonts.speechItalic,
     fontSize: 14.5,
     marginTop: 4,
+    maxWidth: "100%",
+    textAlign: "center",
   },
 
   // dm — gold left hairline, the narrator's margin rule
@@ -232,7 +244,11 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
     paddingHorizontal: 14,
     paddingVertical: 9,
+    // Percentage cap, never a pixel one — plus shrink/minWidth so a pasted URL
+    // breaks inside the bubble instead of pushing it past the screen edge.
     maxWidth: "82%",
+    flexShrink: 1,
+    minWidth: 0,
   },
   dmText: {
     color: theme.text,
@@ -242,8 +258,8 @@ const styles = StyleSheet.create({
   },
 
   // agent
-  agentRow: { flexDirection: "row", alignItems: "flex-end" },
-  avatarSlot: { width: 34, marginRight: 8 },
+  agentRow: { flexDirection: "row", alignItems: "flex-end", maxWidth: "100%" },
+  avatarSlot: { width: 34, marginRight: 8, flexShrink: 0 },
   avatar: {
     width: 34,
     height: 34,
@@ -262,7 +278,11 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
     paddingHorizontal: 14,
     paddingVertical: 9,
+    // Same rule as the DM bubble: a percentage cap that can still shrink, so a
+    // long NPC name or unbroken string wraps rather than widening the row.
     maxWidth: "78%",
+    flexShrink: 1,
+    minWidth: 0,
   },
   agentBubbleGrouped: { borderBottomLeftRadius: 16, borderTopLeftRadius: 6 },
   name: {
@@ -270,6 +290,7 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     letterSpacing: 1.2,
     marginBottom: 3,
+    maxWidth: "100%",
   },
   speech: {
     color: theme.text,

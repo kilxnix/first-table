@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PartyMember, ThreadMessage } from "../types";
 import { MessageBubble } from "./MessageBubble";
 import { TypingRow } from "./TypingRow";
@@ -18,6 +19,7 @@ const SCROLL_NODE_ID = "chat-thread-scroll";
 // honors scrollToEnd here, which silently hides new messages.
 export function ChatThread({ thread, typing, party }: Props) {
   const scrollRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
 
   const portraits = useMemo(() => {
     const map: Record<string, string> = {};
@@ -56,7 +58,11 @@ export function ChatThread({ thread, typing, party }: Props) {
       ref={scrollRef}
       nativeID={SCROLL_NODE_ID}
       style={styles.list}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        // Landscape notch: keep bubbles out of the cut-out on both edges.
+        { paddingLeft: 14 + insets.left, paddingRight: 14 + insets.right },
+      ]}
       onContentSizeChange={scrollToEnd}
       showsVerticalScrollIndicator={false}
     >
@@ -84,7 +90,9 @@ export function ChatThread({ thread, typing, party }: Props) {
 
 const styles = StyleSheet.create({
   // Transparent on purpose: the MoodCanvas gradient breathes through the thread.
-  list: { flex: 1, backgroundColor: "transparent" },
-  content: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 16 },
-  footer: { paddingBottom: 6 },
+  // width/alignSelf pin the list to the screen so no bubble can widen the page.
+  list: { flex: 1, width: "100%", alignSelf: "stretch", backgroundColor: "transparent" },
+  // Horizontal padding is applied inline so safe-area insets fold in.
+  content: { paddingTop: 12, paddingBottom: 16 },
+  footer: { paddingBottom: 6, maxWidth: "100%" },
 });

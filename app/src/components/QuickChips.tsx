@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fonts, theme } from "../theme";
 
 interface Chip {
@@ -21,12 +22,18 @@ interface Props {
 }
 
 export function QuickChips({ onSend, onPrefill }: Props) {
+  const insets = useSafeAreaInsets();
   return (
+    // Horizontal scrolling is the point here — the strip itself just has to stay
+    // pinned to the screen width so it never widens the page.
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       style={styles.strip}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        { paddingLeft: 12 + insets.left, paddingRight: 12 + insets.right },
+      ]}
     >
       {CHIPS.map((chip) => (
         <Pressable
@@ -34,7 +41,9 @@ export function QuickChips({ onSend, onPrefill }: Props) {
           onPress={() => (chip.prefill ? onPrefill(chip.text) : onSend(chip.text))}
           style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
         >
-          <Text style={styles.chipText}>{chip.label}</Text>
+          <Text style={styles.chipText} numberOfLines={1}>
+            {chip.label}
+          </Text>
         </Pressable>
       ))}
     </ScrollView>
@@ -42,8 +51,9 @@ export function QuickChips({ onSend, onPrefill }: Props) {
 }
 
 const styles = StyleSheet.create({
-  strip: { flexGrow: 0 },
-  content: { paddingHorizontal: 12, paddingVertical: 8 },
+  strip: { flexGrow: 0, flexShrink: 0, width: "100%", alignSelf: "stretch" },
+  // Horizontal padding is applied inline so safe-area insets fold in.
+  content: { paddingVertical: 8 },
   chip: {
     backgroundColor: "rgba(28, 21, 18, 0.72)",
     borderColor: "rgba(224, 168, 63, 0.32)",

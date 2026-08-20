@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createRecognizer, speechAvailable } from "../speech";
 import { fonts, theme } from "../theme";
 
@@ -27,6 +28,7 @@ const NATIVE = Platform.OS !== "web";
 const webNoOutline = Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null;
 
 export const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ onSend, disabled }, ref) {
+  const insets = useSafeAreaInsets();
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
@@ -131,7 +133,17 @@ export const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ on
   const canSend = !!text.trim() && !disabled;
 
   return (
-    <View style={styles.bar}>
+    <View
+      style={[
+        styles.bar,
+        {
+          // Clear the Android gesture bar / home indicator, and any landscape notch.
+          paddingBottom: 12 + insets.bottom,
+          paddingLeft: 10 + insets.left,
+          paddingRight: 10 + insets.right,
+        },
+      ]}
+    >
       {(hint || listening) && (
         <Text style={[styles.hint, listening && styles.listeningHint]}>
           {listening ? "\u{1F399}️ listening… release to send" : hint}
@@ -209,11 +221,10 @@ export const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ on
 
 const styles = StyleSheet.create({
   // Transparent shell: the row below is the floating bar itself.
+  // Horizontal + bottom padding are applied inline so safe-area insets fold in.
   bar: {
     backgroundColor: "transparent",
-    paddingHorizontal: 10,
     paddingTop: 6,
-    paddingBottom: 12,
   },
   hint: {
     color: theme.dim,
@@ -221,6 +232,7 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     marginBottom: 6,
     marginLeft: 10,
+    flexShrink: 1,
   },
   listeningHint: { color: theme.ember },
   row: {
@@ -237,7 +249,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
     elevation: 9,
   },
-  micWrap: { width: 38, height: 38, marginRight: 4 },
+  micWrap: { width: 38, height: 38, marginRight: 4, flexShrink: 0 },
   micRing: {
     position: "absolute",
     top: -4,
@@ -262,6 +274,8 @@ const styles = StyleSheet.create({
   micIcon: { fontSize: 17 },
   input: {
     flex: 1,
+    // minWidth 0 lets the field shrink past its content on narrow phones.
+    minWidth: 0,
     minHeight: 38,
     maxHeight: 110,
     backgroundColor: "transparent",
@@ -281,6 +295,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 4,
+    flexShrink: 0,
     overflow: "hidden",
   },
   sendDisabled: {

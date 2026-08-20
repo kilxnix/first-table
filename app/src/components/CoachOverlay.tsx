@@ -1,6 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef } from "react";
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CoachStep } from "../coach";
 import { fonts, theme } from "../theme";
 
@@ -14,6 +15,7 @@ interface Props {
 
 /** One corner-coach tip card, anchored above the input bar. Never blocks play. */
 export function CoachOverlay({ step, onDismiss, onSkipTour }: Props) {
+  const insets = useSafeAreaInsets();
   const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.spring(rise, {
@@ -25,7 +27,13 @@ export function CoachOverlay({ step, onDismiss, onSkipTour }: Props) {
   }, [rise]);
 
   return (
-    <View style={styles.card} pointerEvents="box-none">
+    <View
+      style={[
+        styles.card,
+        { paddingLeft: 12 + insets.left, paddingRight: 12 + insets.right },
+      ]}
+      pointerEvents="box-none"
+    >
       <Animated.View
         style={[
           styles.inner,
@@ -47,8 +55,10 @@ export function CoachOverlay({ step, onDismiss, onSkipTour }: Props) {
         </View>
         <Text style={styles.text}>{step.text}</Text>
         <View style={styles.row}>
-          <Pressable onPress={onSkipTour} hitSlop={8}>
-            <Text style={styles.skip}>skip the tour</Text>
+          <Pressable onPress={onSkipTour} hitSlop={8} style={styles.skipBtn}>
+            <Text style={styles.skip} numberOfLines={1}>
+              skip the tour
+            </Text>
           </Pressable>
           <Pressable
             onPress={() => onDismiss(step.id)}
@@ -63,7 +73,8 @@ export function CoachOverlay({ step, onDismiss, onSkipTour }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: { paddingHorizontal: 12, paddingBottom: 6 },
+  // Horizontal padding is applied inline so safe-area insets fold in.
+  card: { paddingBottom: 6, maxWidth: "100%" },
   inner: {
     backgroundColor: theme.card,
     borderColor: "rgba(224, 168, 63, 0.55)",
@@ -97,7 +108,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 10,
+    // On a very narrow card the two controls stack instead of colliding.
+    flexWrap: "wrap",
+    rowGap: 8,
+    columnGap: 12,
   },
+  skipBtn: { flexShrink: 1, minWidth: 0 },
   skip: {
     color: theme.dim,
     fontFamily: fonts.speechItalic,
@@ -109,6 +125,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 16,
     paddingVertical: 6,
+    flexShrink: 0,
+    marginLeft: "auto",
   },
   gotItPressed: { opacity: 0.8 },
   gotItText: { color: theme.bg, fontFamily: fonts.speechBold, fontSize: 12.5 },
