@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef } from "react";
-import { FlatList, ListRenderItemInfo, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { PartyMember, ThreadMessage } from "../types";
 import { MessageBubble } from "./MessageBubble";
 import { TypingRow } from "./TypingRow";
@@ -10,8 +10,14 @@ interface Props {
   party: PartyMember[];
 }
 
+// Rendered as the DOM id by react-native-web; harmless on native.
+const SCROLL_NODE_ID = "chat-thread-scroll";
+
+// Deliberately a ScrollView, not a FlatList: threads are scene-length (bounded),
+// and react-native-web's VirtualizedList neither extends its render window nor
+// honors scrollToEnd here, which silently hides new messages.
 export function ChatThread({ thread, typing, party }: Props) {
-  const listRef = useRef<FlatList<ThreadMessage>>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const portraits = useMemo(() => {
     const map: Record<string, string> = {};
@@ -20,43 +26,59 @@ export function ChatThread({ thread, typing, party }: Props) {
   }, [party]);
 
   const scrollToEnd = useCallback(() => {
-    listRef.current?.scrollToEnd({ animated: true });
+    // setTimeout, not requestAnimationFrame: rAF callbacks freeze entirely in
+    // hidden/non-compositing tabs, leaving the thread pinned to the top.
+    setTimeout(() => {
+      // Web first: the RN ref's scrollToEnd/getScrollableNode are unreliable on
+      // react-native-web (observed throwing / no-op), so pin the DOM node by id.
+      if (typeof document !== "undefined") {
+        const node = document.getElementById(SCROLL_NODE_ID);
+        if (node) {
+          node.scrollTop = node.scrollHeight;
+          return;
+        }
+      }
+      try {
+        scrollRef.current?.scrollToEnd({ animated: false });
+      } catch {
+        // never let auto-scroll take down the thread
+      }
+    }, 0);
   }, []);
 
-  const renderItem = useCallback(
-    ({ item, index }: ListRenderItemInfo<ThreadMessage>) => {
-      const prev = index > 0 ? thread[index - 1] : undefined;
-      const grouped =
-        !!prev && item.kind === "agent" && prev.kind === "agent" && !!item.seat && prev.seat === item.seat;
-      return (
-        <MessageBubble
-          message={item}
-          portrait={item.seat ? portraits[item.seat] : undefined}
-          grouped={grouped}
-        />
-      );
-    },
-    [thread, portraits]
-  );
+  const typingCount = Object.keys(typing).length;
+  useEffect(() => {
+    scrollToEnd();
+  }, [thread.length, typingCount, scrollToEnd]);
 
   return (
-    <FlatList
-      ref={listRef}
+    <ScrollView
+      ref={scrollRef}
+      nativeID={SCROLL_NODE_ID}
       style={styles.list}
       contentContainerStyle={styles.content}
-      data={thread}
-      keyExtractor={(m) => String(m.id)}
-      renderItem={renderItem}
       onContentSizeChange={scrollToEnd}
       showsVerticalScrollIndicator={false}
-      ListFooterComponent={
-        <View style={styles.footer}>
-          {Object.entries(typing).map(([seat, name]) => (
-            <TypingRow key={seat} name={name} />
-          ))}
-        </View>
-      }
-    />
+    >
+      {thread.map((item, index) => {
+        const prev = index > 0 ? thread[index - 1] : undefined;
+        const grouped =
+          !!prev && item.kind === "agent" && prev.kind === "agent" && !!item.seat && prev.seat === item.seat;
+        return (
+          <MessageBubble
+            key={item.id}
+            message={item}
+            portrait={item.seat ? portraits[item.seat] : undefined}
+            grouped={grouped}
+          />
+        );
+      })}
+      <View style={styles.footer}>
+        {Object.entries(typing).map(([seat, name]) => (
+          <TypingRow key={seat} name={name} />
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
