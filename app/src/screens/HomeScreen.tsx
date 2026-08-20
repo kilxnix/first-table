@@ -2,15 +2,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import * as api from "../api";
 import { MoodCanvas } from "../components/MoodCanvas";
+import { getServerHost, setServerHost } from "../config";
 import { fonts, seatColor, theme } from "../theme";
+
+const webNoOutline = Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null;
 
 const ATTRIBUTION =
   "Includes SRD 5.1 material by Wizards of the Coast LLC, CC-BY-4.0. 5E-compatible.";
@@ -36,6 +41,8 @@ export function HomeScreen({ onEnterTable }: Props) {
   const [campaigns, setCampaigns] = useState<api.CampaignListItem[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editingHost, setEditingHost] = useState(false);
+  const [hostDraft, setHostDraft] = useState(getServerHost);
 
   // Decorative hero entrance + candle-glow pulse. Both start from a visible
   // state so a stalled animation frame (hidden tab) still shows the screen.
@@ -72,6 +79,13 @@ export function HomeScreen({ onEnterTable }: Props) {
   useEffect(() => {
     load();
   }, [load]);
+
+  const saveHost = useCallback(async () => {
+    const applied = await setServerHost(hostDraft);
+    setHostDraft(applied);
+    setEditingHost(false);
+    load();
+  }, [hostDraft, load]);
 
   const newCampaign = useCallback(async () => {
     if (creating) return;
@@ -157,6 +171,38 @@ export function HomeScreen({ onEnterTable }: Props) {
             No campaigns yet. The party is waiting — start one.
           </Text>
         )}
+        <View style={styles.serverRow}>
+          {editingHost ? (
+            <>
+              <TextInput
+                style={[styles.serverInput, webNoOutline]}
+                value={hostDraft}
+                onChangeText={setHostDraft}
+                onSubmitEditing={saveHost}
+                autoFocus
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder="192.168.1.20 or host:8000"
+                placeholderTextColor={theme.faint}
+              />
+              <Pressable onPress={saveHost} hitSlop={8}>
+                <Text style={styles.serverSave}>Save</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable
+              onPress={() => {
+                setHostDraft(getServerHost());
+                setEditingHost(true);
+              }}
+              hitSlop={8}
+            >
+              <Text style={styles.serverText}>
+                {"⚙"} Table server: {getServerHost()}
+              </Text>
+            </Pressable>
+          )}
+        </View>
       </ScrollView>
       <Text style={styles.attribution}>{ATTRIBUTION}</Text>
     </View>
@@ -275,6 +321,28 @@ const styles = StyleSheet.create({
     fontFamily: fonts.speechItalic,
     textAlign: "center",
   },
+
+  serverRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 26,
+    minHeight: 34,
+  },
+  serverText: { color: theme.faint, fontSize: 12 },
+  serverInput: {
+    color: theme.text,
+    fontSize: 13,
+    backgroundColor: theme.panel,
+    borderColor: theme.hairline,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minWidth: 220,
+    marginRight: 10,
+  },
+  serverSave: { color: theme.accent, fontSize: 13, fontFamily: fonts.display },
 
   attribution: {
     color: theme.systemText,

@@ -1,10 +1,10 @@
-import { SERVER_HTTP } from "./config";
+import { httpBase } from "./config";
 import { CampaignState, Report } from "./types";
 
 export interface CampaignListItem { id: number; name: string; created_at: string; }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${SERVER_HTTP}${path}`, init);
+  const res = await fetch(`${httpBase()}${path}`, init);
   if (!res.ok) throw new Error(`${init?.method ?? "GET"} ${path} failed: ${res.status}`);
   return (await res.json()) as T;
 }

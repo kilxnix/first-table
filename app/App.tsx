@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Platform, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { loadServerHost } from "./src/config";
 import { useAppFonts } from "./src/fonts";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { ReportCardScreen } from "./src/screens/ReportCardScreen";
@@ -15,7 +16,12 @@ type Screen =
 
 export default function App() {
   const fontsReady = useAppFonts();
+  const [hostReady, setHostReady] = useState(false);
   const [screen, setScreen] = useState<Screen>({ screen: "home" });
+
+  useEffect(() => {
+    loadServerHost().finally(() => setHostReady(true));
+  }, []);
 
   const enterTable = useCallback(
     (campaignId: number) => setScreen({ screen: "table", campaignId }),
@@ -30,7 +36,7 @@ export default function App() {
     []
   );
 
-  if (!fontsReady) {
+  if (!fontsReady || !hostReady) {
     return (
       <View style={[styles.page, styles.splash]}>
         <Text style={styles.splashFlame}>{"\u{1F56F}️"}</Text>

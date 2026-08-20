@@ -7,3 +7,7 @@ node_modules/
 dist/
 *.db
 .env
+
+# Expo prebuild output (generated in CI)
+app/android/
+app/ios/

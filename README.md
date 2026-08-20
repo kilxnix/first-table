@@ -42,6 +42,22 @@ npx expo start --web                       # browser; or scan the QR in Expo Go
 
 Open http://localhost:8081 → **New campaign** → **Start the scene**.
 
+### 3. Phone (Android APK)
+
+Every `v*` tag (or a manual run of the **Android APK** workflow) builds a sideloadable,
+debug-signed APK on GitHub Actions and attaches it to the release — download
+`first-table.apk` from the repo's Releases page on your phone and install it
+(allow "install unknown apps" when prompted).
+
+The app talks to your PC over Wi-Fi: keep the backend running, make sure phone and PC
+are on the same network, and set **⚙ Table server** on the app's Home screen to your
+PC's LAN IP (e.g. `192.168.4.20`). If the phone can't connect, allow Python through
+Windows Firewall for private networks, e.g. (admin PowerShell):
+
+```bash
+netsh advfirewall firewall add rule name="First Table server" dir=in action=allow protocol=TCP localport=8000
+```
+
 ### Tests
 
 ```powershell

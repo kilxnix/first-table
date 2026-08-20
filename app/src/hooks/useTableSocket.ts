@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SERVER_WS } from "../config";
+import { wsBase } from "../config";
 import * as api from "../api";
 import { CampaignState, DMScreenState, Report, ServerFrame, ThreadMessage } from "../types";
 
@@ -19,7 +19,7 @@ export function useTableSocket(campaignId: number) {
     let ws: WebSocket;
     let retry: ReturnType<typeof setTimeout>;
     const connect = () => {
-      ws = new WebSocket(`${SERVER_WS}/ws/${campaignId}`);
+      ws = new WebSocket(`${wsBase()}/ws/${campaignId}`);
       wsRef.current = ws;
       ws.onopen = () => {
         if (!alive) return;

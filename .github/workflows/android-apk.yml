@@ -1,0 +1,59 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate android project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build release APK (debug-signed for sideloading)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk first-table.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: first-table-apk
+          path: app/first-table.apk
+
+      - name: Attach APK to release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" first-table.apk \
+            --title "First Table ${GITHUB_REF_NAME}" \
+            --notes "Sideload build (debug-signed). Install on Android, then set the Table server address on the Home screen to your PC's LAN IP." \
+            || gh release upload "${GITHUB_REF_NAME}" first-table.apk --clobber
