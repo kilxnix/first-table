@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -8,6 +8,8 @@ import {
   View,
 } from "react-native";
 import { ChatThread } from "../components/ChatThread";
+import { DiceTray } from "../components/DiceTray";
+import { DMDrawer } from "../components/DMDrawer";
 import { InputBar, InputBarHandle } from "../components/InputBar";
 import { QuickChips } from "../components/QuickChips";
 import { useTableSocket } from "../hooks/useTableSocket";
@@ -20,13 +22,15 @@ interface Props {
   campaignId: number;
   onOpenDrawer?: () => void;
   onShowReport: (report: Report) => void;
+  onExit?: () => void;
 }
 
-export function TableScreen({ campaignId, onOpenDrawer, onShowReport }: Props) {
+export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: Props) {
   const {
     state,
     thread,
     typing,
+    dmScreen,
     report,
     sceneActive,
     connected,
@@ -38,6 +42,15 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport }: Props) {
   } = useTableSocket(campaignId);
   const inputRef = useRef<InputBarHandle>(null);
   const [busy, setBusy] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [trayOpen, setTrayOpen] = useState(false);
+
+  const lastRoll = useMemo(() => {
+    for (let i = thread.length - 1; i >= 0; i--) {
+      if (thread[i].kind === "roll") return thread[i];
+    }
+    return null;
+  }, [thread]);
 
   useEffect(() => {
     if (report) onShowReport(report);
@@ -62,9 +75,12 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport }: Props) {
 
   const sendChip = useCallback((text: string) => sendDmInput(text, "text"), [sendDmInput]);
   const prefillChip = useCallback((text: string) => inputRef.current?.prefill(text), []);
+  const openDrawer = useCallback(() => {
+    setDrawerOpen(true);
+    onOpenDrawer?.();
+  }, [onOpenDrawer]);
 
   const empty = !sceneActive && thread.length === 0;
-  void sendRoll; // dice tray lands in the next task
 
   return (
     <KeyboardAvoidingView
@@ -73,6 +89,11 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport }: Props) {
     >
       <View style={styles.header}>
         <View style={styles.headerLeft}>
+          {onExit && (
+            <Pressable onPress={onExit} hitSlop={8} style={styles.backBtn}>
+              <Text style={styles.backText}>{"‹"}</Text>
+            </Pressable>
+          )}
           <View
             style={[styles.dot, { backgroundColor: connected ? theme.accent : theme.danger }]}
           />
@@ -82,7 +103,14 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport }: Props) {
         </View>
         <View style={styles.headerRight}>
           <Pressable
-            onPress={onOpenDrawer}
+            onPress={() => setTrayOpen(true)}
+            style={({ pressed }) => [styles.hBtn, pressed && styles.hBtnPressed]}
+            accessibilityLabel="Open dice tray"
+          >
+            <Text style={styles.hBtnText}>{"\u{1F3B2}"}</Text>
+          </Pressable>
+          <Pressable
+            onPress={openDrawer}
             style={({ pressed }) => [styles.hBtn, pressed && styles.hBtnPressed]}
           >
             <Text style={styles.hBtnText}>{"\u{1F6E1}"}️ DM Screen</Text>
@@ -129,6 +157,14 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport }: Props) {
 
       {sceneActive && <QuickChips onSend={sendChip} onPrefill={prefillChip} />}
       <InputBar ref={inputRef} onSend={sendDmInput} disabled={!sceneActive || !connected} />
+
+      <DiceTray
+        visible={trayOpen}
+        onClose={() => setTrayOpen(false)}
+        onRoll={sendRoll}
+        lastRoll={lastRoll}
+      />
+      <DMDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} dmScreen={dmScreen} />
     </KeyboardAvoidingView>
   );
 }
@@ -146,6 +182,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", flexShrink: 1, marginRight: 8 },
+  backBtn: { marginRight: 8, paddingHorizontal: 2 },
+  backText: { color: theme.dim, fontSize: 24, lineHeight: 26 },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
   title: { color: theme.text, fontSize: 16, fontWeight: "700", fontFamily: serif, flexShrink: 1 },
   headerRight: { flexDirection: "row", alignItems: "center" },

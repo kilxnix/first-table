@@ -1,6 +1,8 @@
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Platform, SafeAreaView, StyleSheet, View } from "react-native";
+import { HomeScreen } from "./src/screens/HomeScreen";
+import { ReportCardScreen } from "./src/screens/ReportCardScreen";
 import { TableScreen } from "./src/screens/TableScreen";
 import { theme } from "./src/theme";
 import { Report } from "./src/types";
@@ -10,24 +12,38 @@ type Screen =
   | { screen: "table"; campaignId: number }
   | { screen: "report"; campaignId: number; report: Report };
 
-// Home and ReportCard screens land in the next task; until then, straight to the table.
-const TEMP_CAMPAIGN_ID = 1;
-
 export default function App() {
-  const [screen, setScreen] = useState<Screen>({ screen: "table", campaignId: TEMP_CAMPAIGN_ID });
+  const [screen, setScreen] = useState<Screen>({ screen: "home" });
+
+  const enterTable = useCallback(
+    (campaignId: number) => setScreen({ screen: "table", campaignId }),
+    []
+  );
+  const goHome = useCallback(() => setScreen({ screen: "home" }), []);
+  const showReport = useCallback(
+    (report: Report) =>
+      setScreen((s) =>
+        s.screen === "table" ? { screen: "report", campaignId: s.campaignId, report } : s
+      ),
+    []
+  );
 
   return (
     <View style={styles.page}>
       <SafeAreaView style={styles.phone}>
         <StatusBar style="light" />
-        {screen.screen !== "home" && (
+        {screen.screen === "home" && <HomeScreen onEnterTable={enterTable} />}
+        {screen.screen === "table" && (
           <TableScreen
             campaignId={screen.campaignId}
-            onShowReport={(report) =>
-              setScreen((s) =>
-                s.screen === "table" ? { screen: "report", campaignId: s.campaignId, report } : s
-              )
-            }
+            onShowReport={showReport}
+            onExit={goHome}
+          />
+        )}
+        {screen.screen === "report" && (
+          <ReportCardScreen
+            report={screen.report}
+            onDone={() => enterTable(screen.campaignId)}
           />
         )}
       </SafeAreaView>
