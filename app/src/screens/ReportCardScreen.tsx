@@ -1,19 +1,18 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useState } from "react";
 import {
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { theme } from "../theme";
+import { MoodCanvas } from "../components/MoodCanvas";
+import { fonts, theme } from "../theme";
 import { AxisScore, Report } from "../types";
-
-const serif = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" });
 
 interface Props {
   report: Report;
@@ -25,9 +24,14 @@ type Card =
   | { key: string; kind: "coach" };
 
 function scoreColor(score: number): string {
-  if (score >= 70) return theme.accent;
+  if (score >= 70) return theme.accentBright;
   if (score < 40) return theme.danger;
   return theme.text;
+}
+
+/** Score bar fill (deep → bright candle gold; guttering red below 40). */
+function scoreBarColors(score: number): readonly [string, string] {
+  return score < 40 ? ["#7c2d1f", theme.danger] : [theme.accentDeep, theme.accentBright];
 }
 
 // Fallback for environments where onLayout is delayed or never fires
@@ -64,6 +68,17 @@ export function ReportCardScreen({ report, onDone }: Props) {
               </Text>
               <Text style={styles.scoreOutOf}>/100</Text>
             </View>
+            <View style={styles.scoreTrack}>
+              <LinearGradient
+                colors={scoreBarColors(item.axis.score)}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[
+                  styles.scoreFill,
+                  { width: `${Math.max(0, Math.min(100, item.axis.score))}%` },
+                ]}
+              />
+            </View>
             <Text style={styles.detail}>{item.axis.detail}</Text>
             <Text style={styles.swipeHint}>swipe {"›"}</Text>
           </View>
@@ -96,6 +111,7 @@ export function ReportCardScreen({ report, onDone }: Props) {
 
   return (
     <View style={styles.screen} onLayout={(e) => setMeasured(e.nativeEvent.layout.width)}>
+      <MoodCanvas mood="night" />
       <Text style={styles.header}>Scene report</Text>
       <Text style={styles.subHeader}>Scene {report.scene_id}</Text>
       {/* Plain ScrollView, not FlatList: three static cards need no
@@ -125,29 +141,30 @@ export function ReportCardScreen({ report, onDone }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.bg, paddingTop: 26 },
+  screen: { flex: 1, backgroundColor: theme.bg, paddingTop: 30 },
   pager: { flex: 1 },
   header: {
     color: theme.dim,
-    fontSize: 12,
-    letterSpacing: 2,
+    fontSize: 13,
+    fontFamily: fonts.displayLight,
+    letterSpacing: 3,
     textTransform: "uppercase",
     textAlign: "center",
   },
   subHeader: {
     color: theme.text,
-    fontSize: 20,
-    fontWeight: "700",
-    fontFamily: serif,
+    fontSize: 19,
+    fontFamily: fonts.display,
+    letterSpacing: 0.5,
     textAlign: "center",
-    marginTop: 4,
+    marginTop: 6,
     marginBottom: 8,
   },
 
   card: { flex: 1, padding: 22, justifyContent: "center" },
   cardInner: {
-    backgroundColor: theme.panel,
-    borderColor: theme.border,
+    backgroundColor: theme.raised,
+    borderColor: theme.hairline,
     borderWidth: 1,
     borderRadius: 20,
     padding: 24,
@@ -155,35 +172,52 @@ const styles = StyleSheet.create({
   },
   axisTitle: {
     color: theme.dim,
-    fontSize: 13,
-    letterSpacing: 2,
+    fontSize: 12,
+    fontFamily: fonts.display,
+    letterSpacing: 2.5,
     textTransform: "uppercase",
     marginBottom: 8,
   },
   scoreRow: { flexDirection: "row", alignItems: "baseline" },
-  score: { fontSize: 76, fontWeight: "800", lineHeight: 84 },
-  scoreOutOf: { color: theme.dim, fontSize: 18, marginLeft: 4 },
+  score: { fontSize: 80, lineHeight: 92, fontFamily: fonts.display },
+  scoreOutOf: { color: theme.faint, fontSize: 16, fontFamily: fonts.displayLight, marginLeft: 6 },
+  scoreTrack: {
+    alignSelf: "stretch",
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.border,
+    overflow: "hidden",
+    marginTop: 12,
+  },
+  scoreFill: { height: "100%", borderRadius: 3 },
   detail: {
     color: theme.text,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 23,
+    fontFamily: fonts.speech,
     textAlign: "center",
-    marginTop: 14,
+    marginTop: 16,
   },
-  swipeHint: { color: theme.dim, fontSize: 12, marginTop: 20, fontStyle: "italic" },
+  swipeHint: {
+    color: theme.faint,
+    fontSize: 13,
+    marginTop: 20,
+    fontFamily: fonts.speechItalic,
+  },
 
   notes: { alignSelf: "stretch", marginBottom: 16 },
   note: {
     color: theme.text,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: fonts.speechItalic,
     marginBottom: 8,
     textAlign: "center",
   },
   drillBox: {
     alignSelf: "stretch",
     backgroundColor: theme.card,
-    borderColor: theme.accent,
+    borderColor: theme.accentDeep,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
@@ -192,31 +226,39 @@ const styles = StyleSheet.create({
   drillLabel: {
     color: theme.accent,
     fontSize: 11,
-    letterSpacing: 1.5,
+    fontFamily: fonts.display,
+    letterSpacing: 2,
     textTransform: "uppercase",
-    marginBottom: 4,
+    marginBottom: 5,
   },
-  drillText: { color: theme.text, fontSize: 14, lineHeight: 20 },
+  drillText: { color: theme.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.speech },
   doneBtn: {
     backgroundColor: theme.accent,
     borderRadius: 999,
     paddingHorizontal: 26,
     paddingVertical: 12,
   },
-  doneBtnPressed: { opacity: 0.8 },
-  doneBtnText: { color: theme.bg, fontSize: 15, fontWeight: "700" },
+  doneBtnPressed: {
+    backgroundColor: theme.accentBright,
+    shadowColor: theme.accent,
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  doneBtnText: { color: theme.bg, fontSize: 13, fontFamily: fonts.display, letterSpacing: 1 },
 
   dots: {
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 18,
   },
   dot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: theme.border,
+    backgroundColor: theme.hairline,
     marginHorizontal: 4,
   },
-  dotActive: { backgroundColor: theme.accent },
+  dotActive: { width: 18, backgroundColor: theme.accent },
 });

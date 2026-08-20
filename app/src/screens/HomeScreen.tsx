@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Platform,
+  Animated,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,12 +9,18 @@ import {
   View,
 } from "react-native";
 import * as api from "../api";
-import { theme } from "../theme";
-
-const serif = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" });
+import { MoodCanvas } from "../components/MoodCanvas";
+import { fonts, seatColor, theme } from "../theme";
 
 const ATTRIBUTION =
   "Includes SRD 5.1 material by Wizards of the Coast LLC, CC-BY-4.0. 5E-compatible.";
+
+/** Decorative party portraits: party data isn't fetched on this screen. */
+const PARTY_PORTRAITS = [
+  { seat: "seat1", glyph: "\u{1F9D9}" },
+  { seat: "seat2", glyph: "\u{1F608}" },
+  { seat: "seat3", glyph: "\u{1F54A}\u{FE0F}" },
+];
 
 interface Props {
   onEnterTable: (campaignId: number) => void;
@@ -30,6 +36,28 @@ export function HomeScreen({ onEnterTable }: Props) {
   const [campaigns, setCampaigns] = useState<api.CampaignListItem[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+
+  // Decorative hero entrance + candle-glow pulse. Both start from a visible
+  // state so a stalled animation frame (hidden tab) still shows the screen.
+  const rise = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(rise, { toValue: 1, friction: 9, tension: 50, useNativeDriver: false }).start();
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 2800, useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 0, duration: 2800, useNativeDriver: false }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [rise, pulse]);
+
+  const heroOpacity = rise.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] });
+  const heroShift = rise.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
+  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.22] });
+  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -60,10 +88,20 @@ export function HomeScreen({ onEnterTable }: Props) {
 
   return (
     <View style={styles.screen}>
+      <MoodCanvas mood="dusk" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.crest}>{"\u{1F56F}"}️</Text>
-        <Text style={styles.title}>First Table</Text>
-        <Text style={styles.tagline}>Run your first table before you run your first table.</Text>
+        <Animated.View
+          style={[styles.hero, { opacity: heroOpacity, transform: [{ translateY: heroShift }] }]}
+        >
+          <View style={styles.crestWrap}>
+            <Animated.View
+              style={[styles.crestGlow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]}
+            />
+            <Text style={styles.crest}>{"\u{1F56F}"}️</Text>
+          </View>
+          <Text style={styles.title}>First Table</Text>
+          <Text style={styles.tagline}>Run your first table before you run your first table.</Text>
+        </Animated.View>
 
         <Pressable
           onPress={newCampaign}
@@ -92,7 +130,23 @@ export function HomeScreen({ onEnterTable }: Props) {
               >
                 <View style={styles.cardBody}>
                   <Text style={styles.cardName}>{c.name}</Text>
-                  <Text style={styles.cardDate}>{formatDate(c.created_at)}</Text>
+                  <View style={styles.cardMeta}>
+                    <View style={styles.portraitRow}>
+                      {PARTY_PORTRAITS.map((p, i) => (
+                        <View
+                          key={p.seat}
+                          style={[
+                            styles.portrait,
+                            { borderColor: seatColor(p.seat) },
+                            i > 0 && styles.portraitOverlap,
+                          ]}
+                        >
+                          <Text style={styles.portraitGlyph}>{p.glyph}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={styles.cardDate}>{formatDate(c.created_at)}</Text>
+                  </View>
                 </View>
                 <Text style={styles.cardChevron}>{"›"}</Text>
               </Pressable>
@@ -111,24 +165,34 @@ export function HomeScreen({ onEnterTable }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.bg },
-  content: { padding: 24, paddingTop: 56, alignItems: "center" },
-  crest: { fontSize: 42, marginBottom: 10 },
+  content: { padding: 24, paddingTop: 52, alignItems: "center" },
+
+  hero: { alignItems: "center" },
+  crestWrap: { alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  crestGlow: {
+    position: "absolute",
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: theme.accent,
+  },
+  crest: { fontSize: 44 },
   title: {
     color: theme.text,
-    fontSize: 38,
-    fontWeight: "700",
-    fontFamily: serif,
-    letterSpacing: 0.5,
+    fontSize: 34,
+    fontFamily: fonts.display,
+    letterSpacing: 4,
+    textAlign: "center",
   },
   tagline: {
     color: theme.dim,
-    fontSize: 14,
-    fontStyle: "italic",
+    fontSize: 15,
+    fontFamily: fonts.speechItalic,
     textAlign: "center",
-    marginTop: 8,
+    marginTop: 10,
     marginBottom: 28,
     maxWidth: 300,
-    lineHeight: 20,
+    lineHeight: 21,
   },
 
   newBtn: {
@@ -136,50 +200,81 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 30,
     paddingVertical: 13,
-    marginBottom: 28,
+    marginBottom: 30,
   },
-  newBtnPressed: { opacity: 0.8 },
-  newBtnText: { color: theme.bg, fontSize: 16, fontWeight: "700" },
+  newBtnPressed: {
+    backgroundColor: theme.accentBright,
+    shadowColor: theme.accent,
+    shadowOpacity: 0.55,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  newBtnText: { color: theme.bg, fontSize: 14, fontFamily: fonts.display, letterSpacing: 1 },
 
   errorBox: {
     alignItems: "center",
     backgroundColor: theme.panel,
-    borderColor: theme.border,
+    borderColor: theme.hairline,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
     alignSelf: "stretch",
   },
-  errorText: { color: theme.danger, fontSize: 13, textAlign: "center", marginBottom: 8 },
-  retryText: { color: theme.accent, fontSize: 14, fontWeight: "600" },
+  errorText: {
+    color: theme.danger,
+    fontSize: 14,
+    fontFamily: fonts.speech,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  retryText: { color: theme.accent, fontSize: 13, fontFamily: fonts.display, letterSpacing: 0.5 },
   spinner: { marginTop: 8 },
 
   listWrap: { alignSelf: "stretch" },
   listLabel: {
     color: theme.dim,
     fontSize: 11,
-    letterSpacing: 1.5,
+    fontFamily: fonts.display,
+    letterSpacing: 2,
     textTransform: "uppercase",
     marginBottom: 8,
   },
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.panel,
-    borderColor: theme.border,
+    backgroundColor: theme.raised,
+    borderColor: theme.hairline,
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 13,
     marginBottom: 8,
   },
   cardPressed: { borderColor: theme.accent },
   cardBody: { flex: 1 },
-  cardName: { color: theme.text, fontSize: 16, fontWeight: "600", fontFamily: serif },
-  cardDate: { color: theme.dim, fontSize: 12, marginTop: 2 },
-  cardChevron: { color: theme.accent, fontSize: 22, marginLeft: 8 },
+  cardName: { color: theme.text, fontSize: 15, fontFamily: fonts.display, letterSpacing: 0.5 },
+  cardMeta: { flexDirection: "row", alignItems: "center", marginTop: 7 },
+  portraitRow: { flexDirection: "row" },
+  portrait: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    backgroundColor: theme.panel,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  portraitOverlap: { marginLeft: -7 },
+  portraitGlyph: { fontSize: 12 },
+  cardDate: { color: theme.faint, fontSize: 12, marginLeft: 10 },
+  cardChevron: { color: theme.accentBright, fontSize: 22, marginLeft: 8 },
 
-  emptyText: { color: theme.dim, fontSize: 13, fontStyle: "italic", textAlign: "center" },
+  emptyText: {
+    color: theme.dim,
+    fontSize: 14,
+    fontFamily: fonts.speechItalic,
+    textAlign: "center",
+  },
 
   attribution: {
     color: theme.systemText,

@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -9,11 +10,10 @@ import {
   Text,
   View,
 } from "react-native";
-import { theme } from "../theme";
+import { fonts, seatColor, theme } from "../theme";
 import { BeatView, DMScreenState, PartyMember } from "../types";
 
 const NATIVE = Platform.OS !== "web";
-const serif = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" });
 const DRAWER_WIDTH = Math.min(390, Math.round(Dimensions.get("window").width * 0.88));
 
 interface Props {
@@ -31,7 +31,12 @@ function beatGlyph(status: BeatView["status"]): string {
 }
 
 function SectionTitle({ children }: { children: string }) {
-  return <Text style={styles.sectionTitle}>{children}</Text>;
+  return (
+    <Text style={styles.sectionTitle}>
+      <Text style={styles.sectionStar}>{"✦"} </Text>
+      {children}
+    </Text>
+  );
 }
 
 export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
@@ -71,11 +76,20 @@ export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
       <Animated.View style={[styles.drawer, { width: DRAWER_WIDTH, transform: [{ translateX }] }]}>
+        <LinearGradient
+          colors={[theme.panel, theme.bg]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
         <View style={styles.drawerHeader}>
           <Pressable onPress={onClose} hitSlop={10} style={styles.closeHandle}>
             <Text style={styles.closeText}>{"‹"} close</Text>
           </Pressable>
-          <Text style={styles.drawerTitle}>DM Screen — private</Text>
+          <Text style={styles.drawerTitle}>
+            <Text style={styles.drawerTitleStar}>{"✦"} </Text>
+            DM Screen — private
+          </Text>
         </View>
 
         {dmScreen ? (
@@ -150,7 +164,9 @@ export function DMDrawer({ visible, onClose, dmScreen, party }: Props) {
                   style={styles.partyRow}
                 >
                   <View style={styles.partyHead}>
-                    <Text style={styles.partyName}>{member.name}</Text>
+                    <Text style={[styles.partyName, { color: seatColor(member.seat) }]}>
+                      {member.name}
+                    </Text>
                     <Text style={styles.peekHint}>{peeking ? "▾" : "▸"}</Text>
                   </View>
                   <View style={styles.hpTrack}>
@@ -223,92 +239,136 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomColor: theme.border,
+    paddingVertical: 13,
+    borderBottomColor: theme.hairline,
     borderBottomWidth: 1,
-    backgroundColor: theme.panel,
   },
   closeHandle: { marginRight: 12 },
-  closeText: { color: theme.dim, fontSize: 14 },
+  closeText: { color: theme.dim, fontSize: 13 },
   drawerTitle: {
     color: theme.accent,
-    fontSize: 15,
-    fontWeight: "700",
-    fontFamily: serif,
-    letterSpacing: 0.4,
+    fontSize: 13,
+    fontFamily: fonts.display,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
   },
+  drawerTitleStar: { color: theme.accentBright },
 
   scroll: { flex: 1 },
   scrollContent: { padding: 14, paddingBottom: 32 },
-  spineTitle: { color: theme.text, fontSize: 19, fontWeight: "700", fontFamily: serif, marginBottom: 4 },
+  spineTitle: {
+    color: theme.text,
+    fontSize: 18,
+    fontFamily: fonts.display,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
   sectionTitle: {
     color: theme.dim,
     fontSize: 11,
-    letterSpacing: 1.5,
+    fontFamily: fonts.display,
+    letterSpacing: 2,
     textTransform: "uppercase",
-    marginTop: 18,
+    marginTop: 20,
     marginBottom: 8,
   },
+  sectionStar: { color: theme.accentDeep },
 
   beat: { marginBottom: 8 },
   beatHead: { flexDirection: "row", alignItems: "center" },
-  beatGlyph: { color: theme.dim, fontSize: 13, width: 22 },
-  beatGlyphActive: { color: theme.accent },
-  beatTitle: { color: theme.text, fontSize: 15, fontWeight: "600" },
-  beatTitleLocked: { color: theme.dim },
+  beatGlyph: { color: theme.faint, fontSize: 13, width: 22 },
+  beatGlyphActive: { color: theme.accentBright },
+  beatTitle: { color: theme.text, fontSize: 14, fontFamily: fonts.display, letterSpacing: 0.3 },
+  beatTitleLocked: { color: theme.faint },
   beatBody: {
     marginLeft: 22,
     marginTop: 6,
     paddingLeft: 10,
-    borderLeftColor: theme.border,
+    borderLeftColor: theme.hairline,
     borderLeftWidth: 2,
   },
-  beatNotes: { color: theme.text, fontSize: 13, lineHeight: 19, marginBottom: 6 },
-  secret: { color: theme.dim, fontSize: 13, lineHeight: 19, marginBottom: 3 },
+  beatNotes: {
+    color: theme.text,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.speech,
+    marginBottom: 6,
+  },
+  secret: {
+    color: theme.dim,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.speechItalic,
+    marginBottom: 3,
+  },
 
   clockRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: theme.panel,
-    borderColor: theme.border,
+    backgroundColor: theme.raised,
+    borderColor: theme.hairline,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
     marginBottom: 6,
   },
-  clockName: { color: theme.text, fontSize: 14 },
-  clockPips: { fontSize: 14, letterSpacing: 3 },
+  clockName: { color: theme.text, fontSize: 14, fontFamily: fonts.speech },
+  clockPips: { fontSize: 16, letterSpacing: 3.5 },
   clockFilled: { color: theme.danger },
-  clockEmpty: { color: theme.dim },
+  clockEmpty: { color: theme.faint },
 
   npcCard: {
-    backgroundColor: theme.card,
-    borderColor: theme.border,
+    backgroundColor: theme.raised,
+    borderColor: theme.hairline,
     borderWidth: 1,
     borderRadius: 10,
-    padding: 11,
+    padding: 12,
     marginBottom: 8,
   },
   npcHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  npcName: { color: theme.text, fontSize: 15, fontWeight: "700" },
+  npcName: { color: theme.text, fontSize: 14, fontFamily: fonts.display, letterSpacing: 0.3 },
   npcStatus: { color: theme.dim, fontSize: 12 },
-  npcVoice: { color: theme.dim, fontSize: 13, fontStyle: "italic", marginTop: 3, lineHeight: 18 },
-  npcSecret: { color: theme.accent, fontSize: 13, marginTop: 5, lineHeight: 18 },
+  npcVoice: {
+    color: theme.dim,
+    fontSize: 14,
+    fontFamily: fonts.speechItalic,
+    marginTop: 3,
+    lineHeight: 19,
+  },
+  npcSecret: {
+    color: theme.accent,
+    fontSize: 14,
+    fontFamily: fonts.speech,
+    marginTop: 6,
+    lineHeight: 19,
+  },
 
-  partyRow: { marginBottom: 10 },
+  partyRow: { marginBottom: 12 },
   partyHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  partyName: { color: theme.text, fontSize: 14, fontWeight: "600", marginBottom: 4 },
-  peekHint: { color: theme.dim, fontSize: 12 },
+  partyName: { fontSize: 13, fontFamily: fonts.display, letterSpacing: 0.5, marginBottom: 4 },
+  peekHint: { color: theme.faint, fontSize: 12 },
   peek: {
     marginTop: 6,
     paddingLeft: 10,
-    borderLeftColor: theme.border,
+    borderLeftColor: theme.hairline,
     borderLeftWidth: 2,
   },
-  peekStats: { color: theme.dim, fontSize: 12, lineHeight: 18, fontVariant: ["tabular-nums"] },
-  peekInventory: { color: theme.text, fontSize: 12, lineHeight: 18, marginTop: 3 },
+  peekStats: {
+    color: theme.dim,
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: fonts.speech,
+    fontVariant: ["tabular-nums"],
+  },
+  peekInventory: {
+    color: theme.text,
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: fonts.speech,
+    marginTop: 3,
+  },
   hpTrack: {
     height: 7,
     borderRadius: 4,
@@ -316,9 +376,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   hpFill: { height: "100%", borderRadius: 4 },
-  hpText: { color: theme.dim, fontSize: 12, marginTop: 3 },
+  hpText: { color: theme.dim, fontSize: 12, marginTop: 3, fontVariant: ["tabular-nums"] },
   conditions: { color: theme.danger, fontSize: 12, marginTop: 2 },
 
   emptyWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: theme.dim, fontSize: 13, fontStyle: "italic" },
+  emptyText: { color: theme.dim, fontSize: 14, fontFamily: fonts.speechItalic },
 });
