@@ -131,3 +131,80 @@ def test_table_works_via_hub_fallback_when_no_workers(monkeypatch):
                 got_agent = True
                 break
         assert got_agent
+
+
+def test_zombie_jobs_dropped_at_claim():
+    async def scenario():
+        q = HubQueue()
+        q.note_worker("w1")
+        with pytest.raises(LLMError):
+            await q.submit({"system": "s", "messages": [], "schema": {}}, timeout=0.01)
+        assert q.pending() == 1              # orphan still queued...
+        assert await q.claim(wait=0.0, worker="w1") is None   # ...but never delivered
+        assert q.pending() == 0
+
+    asyncio.run(scenario())
+
+
+def test_lost_claim_is_redelivered():
+    async def scenario():
+        q = HubQueue()
+        q.note_worker("w1")
+
+        async def flow():
+            job = await q.claim(wait=2.0, worker="w1")
+            # worker "dies": simulate the redelivery window elapsing
+            jid = job["job_id"]
+            j, ts = q._inflight[jid]
+            q._inflight[jid] = (j, ts - 999)
+            job2 = await q.claim(wait=2.0, worker="w2")
+            assert job2 is not None and job2["job_id"] == jid
+            q.resolve(jid, {"speech": "second worker saves it"}, None)
+
+        w = asyncio.create_task(flow())
+        out = await q.submit({"system": "s", "messages": [], "schema": {}}, timeout=5.0)
+        await w
+        return out
+
+    assert asyncio.run(scenario())["speech"] == "second worker saves it"
+
+
+def test_unclaimed_timeout_falls_back():
+    async def scenario():
+        q = HubQueue()
+        q.note_worker("ghost")               # looks online, never claims
+        p = RemoteProvider(q, MockProvider(), job_timeout=0.05)
+        out = await p.complete_json("You are Pix...", [], SCHEMA)
+        assert out["speech"]                 # fallback answered
+
+    asyncio.run(scenario())
+
+
+def test_claimed_timeout_still_raises():
+    async def scenario():
+        q = HubQueue()
+        q.note_worker("w1")
+        p = RemoteProvider(q, MockProvider(), job_timeout=0.3)
+
+        async def slow_worker():
+            await q.claim(wait=2.0, worker="w1")
+            await asyncio.sleep(1.0)         # never resolves in time
+
+        asyncio.create_task(slow_worker())
+        with pytest.raises(LLMError):
+            await p.complete_json("sys", [], SCHEMA)
+
+    asyncio.run(scenario())
+
+
+def test_worker_run_job_survives_any_exception():
+    import sys
+    sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent))
+    from worker import run_job
+
+    class Chaotic:
+        async def complete_json(self, *a, **k):
+            raise KeyError("message")
+
+    body = asyncio.run(run_job(Chaotic(), {"system": "s", "messages": [], "schema": {}}))
+    assert body["error"].startswith("KeyError")

@@ -149,7 +149,10 @@ class OllamaProvider(LLMProvider):
                 data = resp.json()
         except httpx.HTTPError as exc:
             raise LLMError(f"ollama request failed: {exc}") from exc
-        return extract_json(data["message"]["content"])
+        try:
+            return extract_json(data["message"]["content"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise LLMError(f"ollama response unparseable: {exc}") from exc
 
 
 class AnthropicProvider(LLMProvider):
@@ -176,7 +179,10 @@ class AnthropicProvider(LLMProvider):
             raise LLMError(f"anthropic request failed: {exc}") from exc
         for block in resp.content:
             if getattr(block, "type", "") == "text":
-                return json.loads(block.text)
+                try:
+                    return json.loads(block.text)
+                except ValueError as exc:
+                    raise LLMError(f"anthropic response unparseable: {exc}") from exc
         raise LLMError("anthropic response had no text block")
 
 

@@ -24,8 +24,12 @@ function bases(): { http: string; ws: string } {
   if (/^https?:\/\//i.test(entry)) {
     return { http: entry, ws: entry.replace(/^http/i, "ws") };
   }
-  const authority = entry.includes(":") ? entry : `${entry}:8000`;
-  return { http: `http://${authority}`, ws: `ws://${authority}` };
+  // Schemeless: the default port belongs on the authority, never after a path.
+  const slash = entry.indexOf("/");
+  const host = slash === -1 ? entry : entry.slice(0, slash);
+  const path = slash === -1 ? "" : entry.slice(slash);
+  const authority = host.includes(":") ? host : `${host}:8000`;
+  return { http: `http://${authority}${path}`, ws: `ws://${authority}${path}` };
 }
 
 /** Load the persisted override (call once at app start, before any request). */
@@ -44,9 +48,16 @@ export function getServerHost(): string {
 }
 
 export async function setServerHost(host: string): Promise<string> {
-  currentHost = host.trim() || DEFAULT_HOST;
+  const trimmed = host.trim();
+  currentHost = trimmed || DEFAULT_HOST;
   try {
-    await AsyncStorage.setItem(KEY, currentHost);
+    if (trimmed) {
+      await AsyncStorage.setItem(KEY, trimmed);
+    } else {
+      // Clearing the field returns to the default — don't persist the
+      // resolved default as if the user had chosen it.
+      await AsyncStorage.removeItem(KEY);
+    }
   } catch {
     // storage unavailable: the override still applies for this session
   }

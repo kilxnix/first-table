@@ -66,11 +66,18 @@ export function HomeScreen({ onEnterTable }: Props) {
   const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.22] });
   const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
 
+  // Latest-call-wins: an in-flight load against the old server address must
+  // not clobber the results of a load started after the user fixed it.
+  const loadEpoch = useRef(0);
   const load = useCallback(async () => {
+    const epoch = ++loadEpoch.current;
     setLoadError(null);
     try {
-      setCampaigns(await api.listCampaigns());
+      const list = await api.listCampaigns();
+      if (epoch !== loadEpoch.current) return;
+      setCampaigns(list);
     } catch {
+      if (epoch !== loadEpoch.current) return;
       setCampaigns(null);
       setLoadError("Can't reach the server — is it running on port 8000?");
     }

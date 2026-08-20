@@ -23,13 +23,30 @@ POLL_WAIT = 25.0
 
 
 async def run_job(provider, job: dict) -> dict:
-    """Execute one hub job; returns the body to POST back."""
+    """Execute one hub job; returns the body to POST back. Always returns —
+    a claimed job must never be dropped, whatever the provider throws."""
     try:
         result = await provider.complete_json(
             job.get("system", ""), job.get("messages", []), job.get("schema", {}))
         return {"result": result}
     except LLMError as exc:
         return {"error": str(exc)}
+    except Exception as exc:  # noqa: BLE001 - fail the job, not the worker
+        logger.exception("job failed with unexpected error")
+        return {"error": f"{type(exc).__name__}: {exc}"}
+
+
+async def post_result(client: httpx.AsyncClient, url: str, body: dict,
+                      headers: dict, attempts: int = 3) -> httpx.Response:
+    """A completed inference is too expensive to lose to one network blip."""
+    for attempt in range(attempts):
+        try:
+            return await client.post(url, json=body, headers=headers)
+        except httpx.HTTPError:
+            if attempt == attempts - 1:
+                raise
+            await asyncio.sleep(2)
+    raise RuntimeError("unreachable")
 
 
 async def main() -> None:
@@ -59,8 +76,8 @@ async def main() -> None:
                 job = res.json()
                 logger.info("job %s claimed", job["job_id"])
                 body = await run_job(provider, job)
-                post = await client.post(f"{hub_url}/api/hub/jobs/{job['job_id']}",
-                                         json=body, headers=headers)
+                post = await post_result(client, f"{hub_url}/api/hub/jobs/{job['job_id']}",
+                                         body, headers)
                 logger.info("job %s -> %s (%s)", job["job_id"], post.status_code,
                             "error" if body.get("error") else "ok")
             except (httpx.HTTPError, KeyError, ValueError) as exc:
