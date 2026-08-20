@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
-import { theme } from "../theme";
+import { fonts, theme } from "../theme";
 
 interface Chip {
   label: string;
@@ -45,14 +45,22 @@ const styles = StyleSheet.create({
   strip: { flexGrow: 0 },
   content: { paddingHorizontal: 12, paddingVertical: 8 },
   chip: {
-    backgroundColor: theme.panel,
-    borderColor: theme.border,
+    backgroundColor: "rgba(28, 21, 18, 0.72)",
+    borderColor: "rgba(224, 168, 63, 0.32)",
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 13,
+    paddingHorizontal: 14,
     paddingVertical: 7,
     marginRight: 8,
   },
-  chipPressed: { backgroundColor: theme.card, borderColor: theme.accent },
-  chipText: { color: theme.accent, fontSize: 13 },
+  chipPressed: {
+    backgroundColor: "rgba(224, 168, 63, 0.14)",
+    borderColor: theme.accent,
+    shadowColor: theme.accent,
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 3,
+  },
+  chipText: { color: theme.accent, fontFamily: fonts.speech, fontSize: 13.5 },
 });

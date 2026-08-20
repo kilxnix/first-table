@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Platform, StyleSheet, Text, View } from "react-native";
-import { theme } from "../theme";
+import { fonts, theme } from "../theme";
 
 const NATIVE = Platform.OS !== "web";
 
@@ -19,8 +19,8 @@ export function TypingRow({ name }: { name: string }) {
   useEffect(() => {
     const entrance = Animated.spring(pop, {
       toValue: 1,
-      friction: 6,
-      tension: 120,
+      friction: 5,
+      tension: 210,
       useNativeDriver: NATIVE,
     });
     const waves = dots.map((v, i) =>
@@ -80,25 +80,25 @@ export function TypingRow({ name }: { name: string }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", marginTop: 8, marginLeft: 40 },
+  row: { flexDirection: "row", marginTop: 8, marginLeft: 42 },
   pill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.panel,
-    borderColor: theme.border,
+    backgroundColor: "rgba(28, 21, 18, 0.85)",
+    borderColor: theme.hairline,
     borderWidth: 1,
     borderRadius: 14,
     borderBottomLeftRadius: 4,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  label: { color: theme.dim, fontSize: 12, fontStyle: "italic" },
-  dots: { flexDirection: "row", marginLeft: 6, alignItems: "center" },
+  label: { color: theme.dim, fontFamily: fonts.speechItalic, fontSize: 12.5 },
+  dots: { flexDirection: "row", marginLeft: 7, alignItems: "center" },
   dot: {
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: theme.dim,
+    backgroundColor: theme.accent,
     marginHorizontal: 1.5,
   },
 });

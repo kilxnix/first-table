@@ -83,7 +83,8 @@ export function ChatThread({ thread, typing, party }: Props) {
 }
 
 const styles = StyleSheet.create({
-  list: { flex: 1 },
-  content: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12 },
-  footer: { paddingBottom: 4 },
+  // Transparent on purpose: the MoodCanvas gradient breathes through the thread.
+  list: { flex: 1, backgroundColor: "transparent" },
+  content: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 16 },
+  footer: { paddingBottom: 6 },
 });

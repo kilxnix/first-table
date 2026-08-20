@@ -1,7 +1,17 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { createRecognizer, speechAvailable } from "../speech";
-import { theme } from "../theme";
+import { fonts, theme } from "../theme";
 
 export interface InputBarHandle {
   /** Put text into the input (used by the "Cut to…" quick chip) and focus it. */
@@ -13,6 +23,7 @@ interface Props {
   disabled: boolean;
 }
 
+const NATIVE = Platform.OS !== "web";
 const webNoOutline = Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null;
 
 export const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ onSend, disabled }, ref) {
@@ -22,6 +33,25 @@ export const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ on
   const inputRef = useRef<TextInput>(null);
   const recRef = useRef<ReturnType<typeof createRecognizer>>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Decorative only: an ember ring breathes out of the mic while dictating.
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!listening) {
+      pulse.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.timing(pulse, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: NATIVE,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [listening, pulse]);
 
   useImperativeHandle(ref, () => ({
     prefill(t: string) {
@@ -108,18 +138,39 @@ export const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ on
         </Text>
       )}
       <View style={styles.row}>
-        <Pressable
-          onPressIn={startListening}
-          onPressOut={stopListening}
-          style={({ pressed }) => [
-            styles.micBtn,
-            (listening || pressed) && speechAvailable() && styles.micActive,
-            disabled && styles.dimmed,
-          ]}
-          accessibilityLabel="Hold to talk"
-        >
-          <Text style={styles.micIcon}>{"\u{1F3A4}"}</Text>
-        </Pressable>
+        <View style={styles.micWrap}>
+          {listening && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.micRing,
+                {
+                  opacity: pulse.interpolate({
+                    inputRange: [0, 0.15, 1],
+                    outputRange: [0, 0.7, 0],
+                  }),
+                  transform: [
+                    {
+                      scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.5] }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          )}
+          <Pressable
+            onPressIn={startListening}
+            onPressOut={stopListening}
+            style={({ pressed }) => [
+              styles.micBtn,
+              (listening || pressed) && speechAvailable() && styles.micActive,
+              disabled && styles.dimmed,
+            ]}
+            accessibilityLabel="Hold to talk"
+          >
+            <Text style={styles.micIcon}>{"\u{1F3A4}"}</Text>
+          </Pressable>
+        </View>
         <TextInput
           ref={inputRef}
           style={[styles.input, webNoOutline, disabled && styles.dimmed]}
@@ -130,7 +181,7 @@ export const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ on
           placeholder={
             disabled ? "Start a scene to address the table" : listening ? "listening…" : "Narrate the world…"
           }
-          placeholderTextColor={listening ? theme.accent : theme.dim}
+          placeholderTextColor={listening ? theme.ember : theme.dim}
           multiline
           editable={!disabled}
           returnKeyType="send"
@@ -141,6 +192,14 @@ export const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ on
           style={[styles.sendBtn, !canSend && styles.sendDisabled]}
           accessibilityLabel="Send"
         >
+          {canSend && (
+            <LinearGradient
+              colors={[theme.accentBright, theme.accent, theme.accentDeep]}
+              start={{ x: 0.1, y: 0 }}
+              end={{ x: 0.9, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
           <Text style={[styles.sendIcon, !canSend && styles.sendIconDisabled]}>{"➤"}</Text>
         </Pressable>
       </View>
@@ -149,55 +208,87 @@ export const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ on
 });
 
 const styles = StyleSheet.create({
+  // Transparent shell: the row below is the floating bar itself.
   bar: {
-    backgroundColor: theme.panel,
-    borderTopColor: theme.border,
-    borderTopWidth: 1,
+    backgroundColor: "transparent",
     paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 10,
+    paddingTop: 6,
+    paddingBottom: 12,
   },
-  hint: { color: theme.dim, fontSize: 12, marginBottom: 6, marginLeft: 4 },
-  listeningHint: { color: theme.accent },
-  row: { flexDirection: "row", alignItems: "flex-end" },
+  hint: {
+    color: theme.dim,
+    fontFamily: fonts.speechItalic,
+    fontSize: 12.5,
+    marginBottom: 6,
+    marginLeft: 10,
+  },
+  listeningHint: { color: theme.ember },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    backgroundColor: theme.raised,
+    borderColor: theme.hairline,
+    borderWidth: 1,
+    borderRadius: 25,
+    padding: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 9,
+  },
+  micWrap: { width: 38, height: 38, marginRight: 4 },
+  micRing: {
+    position: "absolute",
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: 23,
+    borderColor: theme.ember,
+    borderWidth: 2,
+  },
   micBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: theme.card,
-    borderColor: theme.border,
+    borderColor: theme.hairline,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 8,
   },
-  micActive: { backgroundColor: theme.accent, borderColor: theme.accent },
-  micIcon: { fontSize: 18 },
+  micActive: { backgroundColor: theme.ember, borderColor: theme.ember },
+  micIcon: { fontSize: 17 },
   input: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 38,
     maxHeight: 110,
-    backgroundColor: theme.card,
-    borderColor: theme.border,
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 10,
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    paddingHorizontal: 12,
+    paddingTop: 9,
+    paddingBottom: 9,
     color: theme.text,
-    fontSize: 15,
+    fontFamily: fonts.speech,
+    fontSize: 15.5,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: theme.accent,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 8,
+    marginLeft: 4,
+    overflow: "hidden",
   },
-  sendDisabled: { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 },
+  sendDisabled: {
+    backgroundColor: "transparent",
+    borderColor: theme.hairline,
+    borderWidth: 1,
+  },
   sendIcon: { color: theme.bg, fontSize: 16, fontWeight: "700" },
-  sendIconDisabled: { color: theme.dim },
+  sendIconDisabled: { color: theme.faint },
   dimmed: { opacity: 0.55 },
 });

@@ -13,12 +13,11 @@ import { CoachOverlay } from "../components/CoachOverlay";
 import { DiceTray } from "../components/DiceTray";
 import { DMDrawer } from "../components/DMDrawer";
 import { InputBar, InputBarHandle } from "../components/InputBar";
+import { MoodCanvas } from "../components/MoodCanvas";
 import { QuickChips } from "../components/QuickChips";
 import { useTableSocket } from "../hooks/useTableSocket";
-import { theme } from "../theme";
+import { fonts, Mood, theme } from "../theme";
 import { Report } from "../types";
-
-const serif = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" });
 
 interface Props {
   campaignId: number;
@@ -98,11 +97,17 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: 
 
   const empty = !sceneActive && thread.length === 0;
 
+  // Story temperature drives the backdrop: night before the scene, dusk while
+  // the opening beat plays, embers once the story is properly burning.
+  const activeBeatIndex = dmScreen ? dmScreen.beats.findIndex((b) => b.status === "active") : -1;
+  const mood: Mood = !sceneActive ? "night" : activeBeatIndex > 0 ? "ember" : "dusk";
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <MoodCanvas mood={mood} />
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           {onExit && (
@@ -110,9 +115,7 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: 
               <Text style={styles.backText}>{"‹"}</Text>
             </Pressable>
           )}
-          <View
-            style={[styles.dot, { backgroundColor: connected ? theme.accent : theme.danger }]}
-          />
+          <Text style={[styles.candle, !connected && styles.candleOut]}>{"\u{1F56F}️"}</Text>
           <Text style={styles.title} numberOfLines={1}>
             {state?.name ?? "…"}
           </Text>
@@ -154,7 +157,11 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: 
 
       {empty ? (
         <View style={styles.seatWrap}>
-          <Text style={styles.seatEmoji}>{"\u{1F56F}"}️</Text>
+          <View style={styles.seatGlowWrap}>
+            <View style={[styles.glowCircle, styles.glowOuter]} />
+            <View style={[styles.glowCircle, styles.glowInner]} />
+            <Text style={styles.seatEmoji}>{"\u{1F56F}"}️</Text>
+          </View>
           <Text style={styles.seatTitle}>Take your seat</Text>
           <Text style={styles.seatSub}>
             The party is already at the table. Start the scene and they speak first — your job is
@@ -196,7 +203,12 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: 
       )}
 
       {coachStep && (
-        <CoachOverlay step={coachStep} onDismiss={dismissCoachStep} onSkipTour={skipTour} />
+        <CoachOverlay
+          key={coachStep.id}
+          step={coachStep}
+          onDismiss={dismissCoachStep}
+          onSkipTour={skipTour}
+        />
       )}
       {sceneActive && connected && <QuickChips onSend={sendChip} onPrefill={prefillChip} />}
       <InputBar ref={inputRef} onSend={sendDmInput} disabled={!sceneActive || !connected} />
@@ -219,26 +231,34 @@ export function TableScreen({ campaignId, onOpenDrawer, onShowReport, onExit }: 
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.bg },
+  // Transparent: the MoodCanvas underneath is the true ground of the screen.
+  screen: { flex: 1, backgroundColor: "transparent" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: theme.panel,
-    borderBottomColor: theme.border,
-    borderBottomWidth: 1,
+    backgroundColor: "rgba(15, 11, 8, 0.72)",
+    borderBottomColor: "rgba(224, 168, 63, 0.3)",
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", flexShrink: 1, marginRight: 8 },
   backBtn: { marginRight: 8, paddingHorizontal: 2 },
   backText: { color: theme.dim, fontSize: 24, lineHeight: 26 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  title: { color: theme.text, fontSize: 16, fontWeight: "700", fontFamily: serif, flexShrink: 1 },
+  candle: { fontSize: 13, marginRight: 8 },
+  candleOut: { opacity: 0.35 },
+  title: {
+    color: theme.text,
+    fontFamily: fonts.display,
+    fontSize: 15,
+    letterSpacing: 1,
+    flexShrink: 1,
+  },
   headerRight: { flexDirection: "row", alignItems: "center" },
   hBtn: {
-    backgroundColor: theme.card,
-    borderColor: theme.border,
+    backgroundColor: "rgba(38, 29, 23, 0.78)",
+    borderColor: theme.hairline,
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 11,
@@ -252,39 +272,60 @@ const styles = StyleSheet.create({
   endBtn: { borderColor: theme.danger },
 
   errorRow: {
-    backgroundColor: theme.card,
-    borderBottomColor: theme.border,
+    backgroundColor: "rgba(192, 80, 63, 0.12)",
+    borderBottomColor: "rgba(192, 80, 63, 0.4)",
     borderBottomWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  errorText: { color: theme.danger, fontSize: 12 },
+  errorText: { color: theme.danger, fontFamily: fonts.speechItalic, fontSize: 12.5 },
 
   seatWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
-  seatEmoji: { fontSize: 44, marginBottom: 12 },
+  seatGlowWrap: {
+    width: 150,
+    height: 150,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  glowCircle: { position: "absolute", borderRadius: 999, backgroundColor: theme.accent },
+  glowOuter: { width: 150, height: 150, opacity: 0.05 },
+  glowInner: { width: 92, height: 92, opacity: 0.09 },
+  seatEmoji: { fontSize: 44 },
   seatTitle: {
     color: theme.text,
-    fontSize: 26,
-    fontWeight: "700",
-    fontFamily: serif,
+    fontFamily: fonts.display,
+    fontSize: 24,
+    letterSpacing: 2,
     marginBottom: 10,
   },
   seatSub: {
     color: theme.dim,
-    fontSize: 14,
-    lineHeight: 21,
+    fontFamily: fonts.speech,
+    fontSize: 15,
+    lineHeight: 22,
     textAlign: "center",
     maxWidth: 320,
-    marginBottom: 22,
+    marginBottom: 24,
   },
   seatBtn: {
     backgroundColor: theme.accent,
     borderRadius: 999,
     paddingHorizontal: 26,
     paddingVertical: 12,
+    shadowColor: theme.accent,
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
   },
   seatBtnPressed: { opacity: 0.8 },
-  seatBtnText: { color: theme.bg, fontSize: 16, fontWeight: "700" },
+  seatBtnText: { color: theme.bg, fontFamily: fonts.speechBold, fontSize: 16 },
   seatAltBtn: { marginTop: 14 },
-  seatAltText: { color: theme.dim, fontSize: 13, textDecorationLine: "underline" },
+  seatAltText: {
+    color: theme.dim,
+    fontFamily: fonts.speechItalic,
+    fontSize: 13.5,
+    textDecorationLine: "underline",
+  },
 });
